@@ -295,6 +295,12 @@ namespace Engine.Ecs
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int GetKey(int index)
+        {
+            return array.GetKey(index);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetItemCount(int key)
         {
             return array.GetItemCount(key);

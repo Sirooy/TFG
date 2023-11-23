@@ -1,17 +1,12 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TFG;
+using Core;
 
 namespace Cmps
 {
     public class SpriteCmp
     {
-        public EntityTransformChild Transform;
+        public EntityChildTransform Transform;
         public Texture2D Texture;
         public Rectangle? SourceRect;
         public Vector2 Origin;
@@ -20,7 +15,7 @@ namespace Cmps
 
         public SpriteCmp(Texture2D texture, Rectangle? source = null)
         {
-            this.Transform  = new EntityTransformChild();
+            this.Transform  = new EntityChildTransform();
             this.Texture    = texture;
             this.SourceRect = source;
             this.Origin     = Vector2.Zero;

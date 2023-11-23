@@ -7,151 +7,12 @@ using Microsoft.Xna.Framework.Input;
 using Engine.Graphics;
 using Engine.Ecs;
 using Cmps;
+using Core;
 using Systems;
-
-public class MultiSparseArray<TDataType>
-{
-    public struct Slot //Cambiar a privado
-    {
-        public int Index;
-        public int Count;
-    }
-
-    public const int NullKey = -1;
-
-    public Slot[] slots; //Cambiar a privados
-    public List<TDataType> data;
-    private List<int> remove;
-
-    public int Count { get { return data.Count; } }
-
-    public MultiSparseArray(int initialCapacity = 1)
-    {
-        slots = new Slot[initialCapacity];
-        data = new List<TDataType>(initialCapacity);
-        remove = new List<int>(initialCapacity);
-
-        Array.Fill(slots, new Slot { Index = -1, Count = 0 });
-    }
-
-    public TDataType Add(int key, TDataType item)
-    {
-        if (key >= slots.Length)
-            Resize(slots.Length + key + 1);
-
-        Slot slot = slots[key];
-
-        //Is new data
-        if (slot.Index == NullKey)
-        {
-            slot.Index = data.Count;
-            slot.Count = 1;
-
-            slots[key] = slot;
-            data.Add(item);
-            remove.Add(key);
-        }
-        else
-        {
-            //Increase the index by one of every slot that is next to the one that is
-            //being modified
-            int insertIndex = slot.Index + slot.Count;
-            int removeIndex = insertIndex;
-            while (removeIndex < remove.Count)
-            {
-                int slotIndex = remove[removeIndex];
-                Slot nextSlot = slots[slotIndex];
-                nextSlot.Index++;
-                slots[slotIndex] = nextSlot;
-
-                removeIndex += nextSlot.Count;
-            }
-
-
-            data.Insert(insertIndex, item);
-            remove.Insert(insertIndex, key);
-
-            slot.Count++;
-            slots[key] = slot;
-
-        }
-
-        return item;
-    }
-
-    private void Resize(int newCapacity)
-    {
-        int oldCapacity = slots.Length;
-
-        data.Capacity = newCapacity;
-        remove.Capacity = newCapacity;
-
-        Array.Resize(ref slots, newCapacity);
-        Array.Fill(slots, new Slot { Index = -1, Count = 0 }, oldCapacity, newCapacity - oldCapacity);
-    }
-}
+using Physics;
 
 namespace TFG
 {
-    [Flags]
-    public enum EntityTags
-    {
-        None   = 0x00,
-        Player = 0x01,
-        Enemy  = 0x02
-    }
-
-    public class Entity : EntityBase
-    {
-        public Vector2 Position;
-        public float Rotation;
-        public float Scale;
-        public EntityTags Tags;
-
-        public Entity() : base()
-        {
-            Position = Vector2.Zero;
-            Rotation = 0.0f;
-            Scale    = 1.0f;
-        }
-    }
-
-    public struct EntityTransformChild
-    {
-        public Vector2 LocalPosition;
-        public float   LocalRotation;
-        public float   LocalScale;
-
-        public EntityTransformChild()
-        {
-            LocalPosition = Vector2.Zero;
-            LocalRotation = 0.0f;
-            LocalScale = 1.0f;
-        }
-
-        public Vector2 GetWorldPosition(Entity entity)
-        {
-            float cos = MathF.Cos(entity.Rotation);
-            float sin = MathF.Sin(entity.Rotation);
-            float x   = entity.Scale * LocalPosition.X;
-            float y   = entity.Scale * LocalPosition.Y;
-
-            return new Vector2(
-                (x * cos - y * sin) + entity.Position.X,
-                (x * sin + y * cos) + entity.Position.Y);
-        }
-
-        public float GetWorldRotation(Entity entity)
-        {
-            return LocalRotation + entity.Rotation;
-        }
-
-        public float GetWorldScale(Entity entity)
-        {
-            return LocalScale * entity.Scale;
-        }
-    }
-
     class Transform
     {
         public Vector2 LocalPosition;
@@ -211,6 +72,7 @@ namespace TFG
         private SystemManager updateSystems;
         private SystemManager drawSystems;
         private Entity player;
+        private SpriteFont font;
 
         Transform child;
         Transform parent;
@@ -227,6 +89,7 @@ namespace TFG
             Content.RootDirectory = "Content";
             IsMouseVisible  = true;
             IsFixedTimeStep = true;
+            
 
             graphics.PreferredBackBufferWidth  = WindowWidth;
             graphics.PreferredBackBufferHeight = WindowHeight;
@@ -258,8 +121,11 @@ namespace TFG
 
             entityManager.RegisterComponent<SpriteCmp>();
             entityManager.RegisterComponent<PhysicsCmp>();
-            
-            
+            entityManager.RegisterComponent<CollisionCmp>();
+
+            DebugTimer.Register("Update", 50);
+            DebugTimer.Register("Draw",   50);
+            DebugTimer.Register("Physics", 50);
 
             //camera.ViewportPosition = new Vector2(0.0f, 0.0f);
             //camera.ViewportSize = new Vector2(1.0f, 1.0f);
@@ -279,7 +145,7 @@ namespace TFG
                     tile.Position = new Vector2(x * 16.0f, y * 16.0f);
                     tile.Source = new Rectangle(rnd.Next(30) * 16,
                         rnd.Next(27) * 16, 16, 16);
-                    tiles.Add(tile);
+                    //tiles.Add(tile);
                 }
             }
 
@@ -293,9 +159,11 @@ namespace TFG
             spriteBatch = new SpriteBatch(GraphicsDevice);
             shapeBatch = new ShapeBatch(GraphicsDevice);
             tileSetTexture = Content.Load<Texture2D>("TileSet");
+            font = Content.Load<SpriteFont>("DebugFont");
             // TODO: use this.Content to load your game content here
 
             player = entityManager.CreateEntity();
+            player.Position = new Vector2(0, -256.0f);
             SpriteCmp spriteCmp1 = entityManager.AddComponent(player, 
                 new SpriteCmp(tileSetTexture, new Rectangle(16, 16, 16, 16)));
             spriteCmp1.Transform.LocalPosition = new Vector2(0.0f,  32.0f);
@@ -305,24 +173,82 @@ namespace TFG
             spriteCmp2.Transform.LocalPosition = new Vector2(0.0f, -32.0f);
             spriteCmp2.Origin = new Vector2(8.0f, 8.0f);
             PhysicsCmp physicsCmp = entityManager.AddComponent(player, new PhysicsCmp());
-            physicsCmp.MaxLinearVelocity = new Vector2(250.0f, 250.0f);
+            physicsCmp.MaxLinearVelocity = new Vector2(300.0f, 300.0f);
+            physicsCmp.GravityMultiplier = 0.0f;
+            //CollisionCmp collisionCmp1 = entityManager.AddComponent(player,
+            //    new CollisionCmp(new CircleCollider(32.0f)));
+            //collisionCmp1.Transform.LocalPosition = new Vector2(50.0f, 0.0f);
+            physicsCmp.Restitution = 0.0f;
+            CollisionCmp collisionCmp2 = entityManager.AddComponent(player,
+                new CollisionCmp(new RectangleCollider(64.0f, 32.0f)));
+            collisionCmp2.Transform.LocalPosition = new Vector2(0.0f, 0.0f);
+            
 
+            Entity block   = entityManager.CreateEntity();
+            block.Position = new Vector2(0.0f, 16.0f * 20.0f);
+            PhysicsCmp blockPhysics = entityManager.AddComponent(block, new PhysicsCmp());
+            blockPhysics.GravityMultiplier = 0.0f;
+            blockPhysics.Mass = 0.0f;
+            CollisionCmp blockCollision = entityManager.AddComponent(block,
+                new CollisionCmp(new RectangleCollider(1024.0f, 128.0f)));
+            blockPhysics.Restitution = 0.2f;
+
+            Random rnd = new Random();
+            const int COLUMNS = 20;
+            const int ROWS    = 5;
+            for(int i = 0;i < COLUMNS; ++i)
+            {
+                for(int j = 0;j < ROWS; ++j)
+                {
+                    float x = (i - ((COLUMNS / 2) - 1)) * 32.0f;
+                    float y = (j - ((ROWS / 2) - 1)) * 32.0f;
+
+                    Entity e = entityManager.CreateEntity();
+                    e.Position = new Vector2(x, y);
+                    PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
+                    phy.Restitution = 0.0f;
+
+                    SpriteCmp spr = entityManager.AddComponent(e,
+                        new SpriteCmp(tileSetTexture, new Rectangle(
+                            rnd.Next(3) * 16,
+                            rnd.Next(15) * 16, 16, 16)));
+                    spr.Origin = new Vector2(8.0f, 8.0f);
+                    entityManager.AddComponent(e,
+                        new CollisionCmp(new RectangleCollider(16.0f, 16.0f)));
+                }
+            }
+           
 
             drawSystems.RegisterSystem(new RenderSystem(entityManager, spriteBatch, shapeBatch, camera));
             drawSystems.EnableSystem<RenderSystem>();
 
-            updateSystems.RegisterSystem(new PhysicsSystem(entityManager, 1.0f / 60.0f));
+            updateSystems.RegisterSystem(new PhysicsSystem(entityManager, 
+                new Vector2(0.0f, 250.0f), 1.0f / 60.0f));
             updateSystems.EnableSystem<PhysicsSystem>();
+            updateSystems.GetSystem<PhysicsSystem>().Iterations = 1;
+        }
+
+        private void CreateCircleEntity()
+        {
+            Entity e = entityManager.CreateEntity();
+            e.Position = MouseInput.GetPosition(camera);
+
+            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Restitution = 0.5f;
+
+            entityManager.AddComponent(e,
+                new CollisionCmp(new CircleCollider(8.0f)));
         }
 
         protected override void Update(GameTime gameTime)
         {
+            DebugTimer.Start("Update");
+
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || 
                 Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
             float dt = (float) gameTime.ElapsedGameTime.TotalSeconds;
-
             Input.Update();
             gameStates.Update();
             gameStates.UpdateActiveStates(gameTime);
@@ -372,9 +298,14 @@ namespace TFG
                     screen.Resize(800, 600);
             }
 
+            if(MouseInput.IsLeftButtonPressed())
+            {
+                CreateCircleEntity();
+                Console.WriteLine(entityManager.GetEntities().Count);
+            }
 
             PhysicsCmp physicsCmp = entityManager.GetComponent<PhysicsCmp>(player);
-            const float PLAYER_FORCE = 2000.0f;
+            const float PLAYER_FORCE = 1000.0f;
             Vector2 force = Vector2.Zero;
             if (KeyboardInput.IsKeyDown(Keys.Up))
                 force.Y -= 1.0f;
@@ -404,6 +335,16 @@ namespace TFG
                 player.Rotation -= MathF.PI / 2.0f * dt;
             }
 
+            if (KeyboardInput.IsKeyDown(Keys.H))
+            {
+                player.Scale += 1.0f * dt;
+            }
+            if (KeyboardInput.IsKeyDown(Keys.K))
+            {
+                player.Scale -= 1.0f * dt;
+            }
+            
+
             const float CAM_SPEED = 300.0f;
             Vector2 vel = Vector2.Zero;
             if (KeyboardInput.IsKeyDown(Keys.W))
@@ -423,18 +364,18 @@ namespace TFG
             }
 
             Rectangle bounds = camera.GetBounds();
-            if (bounds.X < 0) Console.WriteLine("Left"); // camera.Position = new Vector2(0.0f, camera.Position.Y);
-            if (bounds.Y < 0) Console.WriteLine("Top"); // camera.Position = new Vector2(camera.Position.X, 0.0f);
+            //if (bounds.X < 0) Console.WriteLine("Left"); // camera.Position = new Vector2(0.0f, camera.Position.Y);
+            //if (bounds.Y < 0) Console.WriteLine("Top"); // camera.Position = new Vector2(camera.Position.X, 0.0f);
             if (bounds.Right > screen.Width)
             {
-                Console.WriteLine("Right");
+                //Console.WriteLine("Right");
                 //camera.Position =
                 //    new Vector2(renderTarget2D.Width - bounds.Width, camera.Position.Y);
             }
                 
             if (bounds.Bottom > screen.Width)
             {
-                Console.WriteLine("Bottom");
+                //Console.WriteLine("Bottom");
                 //camera.Position =
                 //    new Vector2(camera.Position.X, renderTarget2D.Height - bounds.Height);
             }
@@ -447,6 +388,7 @@ namespace TFG
             }
 
             updateSystems.UpdateSystems();
+            DebugTimer.Stop("Update");
 
             base.Update(gameTime);
         }
@@ -480,6 +422,7 @@ namespace TFG
 
         protected override void Draw(GameTime gameTime)
         {
+            DebugTimer.Start("Draw");
             screen.Attach();
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
@@ -490,9 +433,6 @@ namespace TFG
                 spriteBatch.Draw(tileSetTexture, t.Position, 
                     t.Source, Color.White);
             }
-            spriteBatch.Draw(tileSetTexture, new Vector2(640.0f, 0.0f),
-                new Rectangle(0, 0, 16, 16), Color.White);
-
             spriteBatch.End();
 
 
@@ -523,12 +463,13 @@ namespace TFG
             shapeBatch.End();
             drawSystems.UpdateSystems();
 
-
+            DebugTimer.Draw(spriteBatch, font);
 
             //gameStates.DrawActiveStates(gameTime, spriteBatch);
 
             screen.Present(spriteBatch, SamplerState.PointClamp);
 
+            DebugTimer.Stop("Draw");
 
             base.Draw(gameTime);
         }

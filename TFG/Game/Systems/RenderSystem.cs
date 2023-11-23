@@ -1,9 +1,11 @@
 ﻿using Cmps;
+using Core;
 using Engine.Core;
 using Engine.Ecs;
 using Engine.Graphics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Physics;
 using System;
 using TFG;
 
@@ -44,9 +46,10 @@ namespace Systems
 
             DrawEntitiesAxis();
             DrawEntitiesPhysics();
+            DrawEntitiesColliders();
         }
 
-        [System.Diagnostics.Conditional("DEBUG")]
+        //[System.Diagnostics.Conditional("DEBUG")]
         private void DrawEntitiesAxis()
         {
             shapeBatch.Begin(camera);
@@ -71,19 +74,53 @@ namespace Systems
             shapeBatch.End();
         }
 
-        [System.Diagnostics.Conditional("DEBUG")]
+        //[System.Diagnostics.Conditional("DEBUG")]
         private void DrawEntitiesPhysics()
         {
             shapeBatch.Begin(camera);
             entityManager.ForEachComponent((Entity e, PhysicsCmp physics) =>
             {
                 Vector2 velocity = physics.LinearVelocity;
-                Vector2 accel    = physics.Acceleration;
 
-                shapeBatch.DrawLine(e.Position, e.Position + accel, 2.0f, 
-                    Color.Magenta, 0.0f);
                 shapeBatch.DrawLine(e.Position, e.Position + velocity, 1.0f,
                     Color.Cyan, 0.0f);
+            });
+            shapeBatch.End();
+        }
+
+        //[System.Diagnostics.Conditional("DEBUG")]
+        private void DrawEntitiesColliders()
+        {
+            shapeBatch.Begin(camera);
+            entityManager.ForEachComponent((Entity e, CollisionCmp collision) =>
+            {
+                ColliderShape shape = collision.Collider;
+
+                if (shape.Type == ColliderShapeType.Circle)
+                {
+                    CircleCollider circle = (CircleCollider) shape;
+
+                    float rotation  = collision.Transform.GetWorldRotation(e);
+                    float cos       = MathF.Cos(rotation);
+                    float sin       = MathF.Sin(rotation);
+                    float radius    = collision.Transform.GetWorldScale(e) * 
+                        circle.Radius;
+                    Vector2 center  = collision.Transform.GetWorldPosition(e);
+                    Vector2 lineDir = new Vector2(cos * radius, sin * radius);
+
+                    shapeBatch.DrawCircle(center, radius, 24, 2.0f, Color.Yellow);
+                    shapeBatch.DrawLine(center, center + lineDir, 2.0f, Color.Yellow);
+                }
+                else if (shape.Type == ColliderShapeType.Rectangle)
+                {
+                    RectangleCollider rectangle = (RectangleCollider) shape;
+                    Vector2 size = new Vector2(rectangle.Width, rectangle.Height) * 
+                        collision.Transform.GetWorldScale(e);
+
+                    shapeBatch.DrawRectangle(collision.Transform.GetWorldPosition(e),
+                        size, 2.0f, collision.Transform.GetWorldRotation(e), 
+                        size * 0.5f, Color.Yellow);
+                }
             });
             shapeBatch.End();
         }

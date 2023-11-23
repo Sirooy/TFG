@@ -56,6 +56,11 @@ namespace Engine.Ecs
             return entity;
         }
 
+        public ReadOnlySA<TEntity> GetEntities()
+        {
+            return entities.AsReadOnly();
+        }
+
         public TEntity GetEntityFromComponentIndex<TCmp>(int index)
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
