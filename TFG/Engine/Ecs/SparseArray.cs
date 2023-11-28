@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Engine.Core;
+using Engine.Debug;
 
 namespace Engine.Ecs
 {
@@ -49,7 +50,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetKey(int index)
         {
-            Debug.Assert(index > -1 && index < remove.Length && remove[index] != NullKey,
+            DebugAssert.Success(index > -1 && index < remove.Length && remove[index] != NullKey,
                 "Cannot get key with index {0}. Index out of bounds", index);
             return remove[index];
         }
@@ -57,7 +58,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TDataType Get(int key)
         {
-            Debug.Assert(Contains(key), 
+            DebugAssert.Success(Contains(key), 
                 "Cannot get item with key {0}. Item not found", key);
             return data[slots[key]];
         }
@@ -77,7 +78,7 @@ namespace Engine.Ecs
 
         public TDataType Add(int key, TDataType item)
         {
-            Debug.Assert(!Contains(key), 
+            DebugAssert.Success(!Contains(key), 
                 "An item with the same key ({0}) has already been added.", key);
 
             if (key >= slots.Length)
@@ -94,7 +95,7 @@ namespace Engine.Ecs
 
         public void Remove(int key)
         {
-            Debug.Assert(Contains(key), 
+            DebugAssert.Success(Contains(key), 
                 "Cannot remove item with key {0}. Item not found", key);
 
             int index = slots[key];

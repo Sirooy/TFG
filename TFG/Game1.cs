@@ -10,6 +10,7 @@ using Cmps;
 using Core;
 using Systems;
 using Physics;
+using Engine.Debug;
 
 namespace TFG
 {
@@ -100,7 +101,7 @@ namespace TFG
             Window.ClientSizeChanged += (object sender, EventArgs args) =>
             {
                 screen.UpdateDestinationRect();
-                Debug.LogWarning("Resize {0}:{1}", Window.ClientBounds.Width, 
+                DebugLog.LogWarning("Resize {0}:{1}", Window.ClientBounds.Width, 
                     Window.ClientBounds.Height);
             };
 
@@ -108,7 +109,7 @@ namespace TFG
 
         protected override void Initialize()
         {
-            Debug.LogInfo("Initializing");
+            DebugLog.LogInfo("Initializing");
 
             gameStates = new GameStateStack();
             screen = new RenderScreen(GraphicsDevice, 800, 600);
@@ -123,9 +124,9 @@ namespace TFG
             entityManager.RegisterComponent<PhysicsCmp>();
             entityManager.RegisterComponent<CollisionCmp>();
 
-            DebugTimer.Register("Update", 50);
+            DebugTimer.Register("Update", 120);
             DebugTimer.Register("Draw",   50);
-            DebugTimer.Register("Physics", 50);
+            DebugTimer.Register("Physics", 120);
 
             //camera.ViewportPosition = new Vector2(0.0f, 0.0f);
             //camera.ViewportSize = new Vector2(1.0f, 1.0f);
@@ -154,7 +155,7 @@ namespace TFG
 
         protected override void LoadContent()
         {
-            Debug.LogInfo("Loading content");
+            DebugLog.LogInfo("Loading content");
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
             shapeBatch = new ShapeBatch(GraphicsDevice);
@@ -162,6 +163,8 @@ namespace TFG
             font = Content.Load<SpriteFont>("DebugFont");
             // TODO: use this.Content to load your game content here
 
+            float playerWidth = 64.0f;
+            float playerHeight = 32.0f;
             player = entityManager.CreateEntity();
             player.Position = new Vector2(0, -256.0f);
             SpriteCmp spriteCmp1 = entityManager.AddComponent(player, 
@@ -178,7 +181,12 @@ namespace TFG
             //CollisionCmp collisionCmp1 = entityManager.AddComponent(player,
             //    new CollisionCmp(new CircleCollider(32.0f)));
             //collisionCmp1.Transform.LocalPosition = new Vector2(50.0f, 0.0f);
-            physicsCmp.Restitution = 0.0f;
+            physicsCmp.Restitution = 1.0f;
+            physicsCmp.Mass = 0.0f;
+            
+            physicsCmp.Inertia = (1.0f / 12.0f) * 1.0f * 
+                (playerWidth * playerWidth + playerHeight * playerHeight);
+
             CollisionCmp collisionCmp2 = entityManager.AddComponent(player,
                 new CollisionCmp(new RectangleCollider(64.0f, 32.0f)));
             collisionCmp2.Transform.LocalPosition = new Vector2(0.0f, 0.0f);
@@ -189,13 +197,14 @@ namespace TFG
             PhysicsCmp blockPhysics = entityManager.AddComponent(block, new PhysicsCmp());
             blockPhysics.GravityMultiplier = 0.0f;
             blockPhysics.Mass = 0.0f;
+            blockPhysics.Inertia = 0.0f;
             CollisionCmp blockCollision = entityManager.AddComponent(block,
                 new CollisionCmp(new RectangleCollider(1024.0f, 128.0f)));
             blockPhysics.Restitution = 0.2f;
 
             Random rnd = new Random();
-            const int COLUMNS = 20;
-            const int ROWS    = 5;
+            const int COLUMNS = 0;// 20;
+            const int ROWS    = 0;// 5;
             for(int i = 0;i < COLUMNS; ++i)
             {
                 for(int j = 0;j < ROWS; ++j)
@@ -207,6 +216,7 @@ namespace TFG
                     e.Position = new Vector2(x, y);
                     PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
                     phy.Restitution = 0.0f;
+                    //phy.Inertia = 2000.0f;
 
                     SpriteCmp spr = entityManager.AddComponent(e,
                         new SpriteCmp(tileSetTexture, new Rectangle(
@@ -240,6 +250,24 @@ namespace TFG
                 new CollisionCmp(new CircleCollider(8.0f)));
         }
 
+        private void CreateRectangleEntity()
+        {
+            Random rnd = new Random();
+            const float MIN_SIZE = 16.0f;
+            const float MAX_SIZE = 32.0f;
+            float width = (float)rnd.NextDouble() * (MAX_SIZE - MIN_SIZE) + MIN_SIZE;
+            float height = (float)rnd.NextDouble() * (MAX_SIZE - MIN_SIZE) + MIN_SIZE;
+            Entity e = entityManager.CreateEntity();
+            e.Position = MouseInput.GetPosition(camera);
+
+            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Restitution = 0.5f;
+            phy.Inertia = (1.0f / 12.0f) * phy.Mass * (width * width + height * height);
+
+            entityManager.AddComponent(e,
+                new CollisionCmp(new RectangleCollider(width, height)));
+        }
+
         protected override void Update(GameTime gameTime)
         {
             DebugTimer.Start("Update");
@@ -265,6 +293,12 @@ namespace TFG
             {
                 Vector2 pos = MouseInput.GetPosition();
                 PrintSizes(ConsoleColor.Yellow);
+            }
+
+            if(MouseInput.ScrollHasChanged())
+            {
+                int sign = -MathF.Sign(MouseInput.ScrollValueDiff);
+                camera.Zoom += 0.1f * sign;
             }
 
             if(KeyboardInput.IsKeyPressed(Keys.D1))
@@ -304,8 +338,14 @@ namespace TFG
                 Console.WriteLine(entityManager.GetEntities().Count);
             }
 
+            if (MouseInput.IsRightButtonPressed())
+            {
+                CreateRectangleEntity();
+                Console.WriteLine(entityManager.GetEntities().Count);
+            }
+
             PhysicsCmp physicsCmp = entityManager.GetComponent<PhysicsCmp>(player);
-            const float PLAYER_FORCE = 1000.0f;
+            const float PLAYER_FORCE = 100.0f;
             Vector2 force = Vector2.Zero;
             if (KeyboardInput.IsKeyDown(Keys.Up))
                 force.Y -= 1.0f;
@@ -328,11 +368,13 @@ namespace TFG
 
             if(KeyboardInput.IsKeyDown(Keys.B))
             {
-                player.Rotation += MathF.PI / 2.0f * dt;
+                physicsCmp.Torque += 10000.0f;
+                //player.Rotation += MathF.PI / 2.0f * dt;
             }
             if (KeyboardInput.IsKeyDown(Keys.M))
             {
-                player.Rotation -= MathF.PI / 2.0f * dt;
+                physicsCmp.Torque -= 10000.0f;
+                //player.Rotation -= MathF.PI / 2.0f * dt;
             }
 
             if (KeyboardInput.IsKeyDown(Keys.H))
@@ -426,7 +468,6 @@ namespace TFG
             screen.Attach();
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
-
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
             foreach (Tile t in tiles)
             {
@@ -463,27 +504,39 @@ namespace TFG
             shapeBatch.End();
             drawSystems.UpdateSystems();
 
+            DebugTimer.Stop("Draw");
             DebugTimer.Draw(spriteBatch, font);
+
+            shapeBatch.Begin(camera);
+            foreach(Vector2 v in PhysicsSystem.contactPoints)
+            {
+                shapeBatch.DrawFilledRectangle(v - new Vector2(2.0f, 2.0f),
+                    new Vector2(4.0f, 4.0f), Color.Red);
+            }
+
+            shapeBatch.End();
+
+            
 
             //gameStates.DrawActiveStates(gameTime, spriteBatch);
 
+
             screen.Present(spriteBatch, SamplerState.PointClamp);
 
-            DebugTimer.Stop("Draw");
 
             base.Draw(gameTime);
         }
 
         protected override void OnActivated(object sender, EventArgs args)
         {
-            Debug.LogInfo("Game is focused");
+            DebugLog.LogInfo("Game is focused");
 
             base.OnActivated(sender, args);
         }
 
         protected override void OnDeactivated(object sender, EventArgs args)
         {
-            Debug.LogInfo("Game lost focus");
+            DebugLog.LogInfo("Game lost focus");
             
             base.OnDeactivated(sender, args);
         }

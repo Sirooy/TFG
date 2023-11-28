@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Ecs;
+using Engine.Debug;
 
 namespace Engine.Core
 {
@@ -49,7 +50,7 @@ namespace Engine.Core
         {
             int id = IdMetadataGenerator<GameState, TState>.Id;
 
-            Debug.Assert(!states.ContainsKey(id),
+            DebugAssert.Success(!states.ContainsKey(id),
                 "Game state \"{0}\" has already been registered",
                 typeof(TState).Name);
 
@@ -61,7 +62,7 @@ namespace Engine.Core
         {
             int id = IdMetadataGenerator<GameState, TState>.Id;
 
-            Debug.Assert(states.ContainsKey(id),
+            DebugAssert.Success(states.ContainsKey(id),
                 "Game state \"{0}\" has not been registered",
                 typeof(TState).Name);
 
@@ -73,7 +74,7 @@ namespace Engine.Core
         {
             int id = IdMetadataGenerator<GameState, TState>.Id;
 
-            Debug.Assert(states.ContainsKey(id),
+            DebugAssert.Success(states.ContainsKey(id),
                 "Game state \"{0}\" has not been registered",
                 typeof(TState).Name);
 
@@ -85,7 +86,7 @@ namespace Engine.Core
         {
             int id = IdMetadataGenerator<GameState, TState>.Id;
 
-            Debug.Assert(states.ContainsKey(id),
+            DebugAssert.Success(states.ContainsKey(id),
                 "Game state \"{0}\" has not been registered",
                 typeof(TState).Name);
 
@@ -94,7 +95,7 @@ namespace Engine.Core
 
         public void PopLastState()
         {
-            Debug.Assert(activeStates.Count > 0, "There are no active states");
+            DebugAssert.Success(activeStates.Count > 0, "There are no active states");
 
             removedActiveStates.Add(activeStates.Last().Id);
         }
@@ -117,7 +118,7 @@ namespace Engine.Core
                 int index = activeStates.FindIndex(
                     (ActiveGameState state) => { return state.Id == id; });
 
-                Debug.Assert(index != -1, 
+                DebugAssert.Success(index != -1, 
                     "Trying to pop inactive state with id {0}", id);
 
                 activeStates[index].State.OnExit();
@@ -128,7 +129,7 @@ namespace Engine.Core
             {
                 int id = addedActiveStates[i];
 
-                Debug.Assert(states.ContainsKey(id), 
+                DebugAssert.Success(states.ContainsKey(id), 
                     "Trying to push unregistered state with id {0}", id);
 
                 GameState state = states[id];

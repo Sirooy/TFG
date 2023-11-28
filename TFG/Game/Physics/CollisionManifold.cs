@@ -12,17 +12,21 @@ namespace Physics
         public PhysicsCmp Physics2;
         public Vector2 Normal;
         public float Depth;
-        public bool Collision;
+        public Vector2 Contact1;
+        public Vector2 Contact2;
+        public int NumContacts;
 
         public CollisionManifold()
         {
-            Entity1   = null;
-            Entity2   = null;
-            Physics1  = null;
-            Physics2  = null;
-            Normal    = Vector2.Zero;
-            Depth     = 0.0f;
-            Collision = false;
+            Entity1     = null;
+            Entity2     = null;
+            Physics1    = null;
+            Physics2    = null;
+            Normal      = Vector2.Zero;
+            Contact1    = Vector2.Zero;
+            Contact2    = Vector2.Zero;
+            NumContacts = 0;
+            Depth       = 0.0f;
         }
     }
 }

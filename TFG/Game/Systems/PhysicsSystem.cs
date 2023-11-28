@@ -1,10 +1,12 @@
 ﻿using System;
-using Engine.Ecs;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
+using Engine.Ecs;
 using Core;
 using Cmps;
-using System.Collections.Generic;
 using Physics;
+using Engine.Debug;
 using Engine.Core;
 
 namespace Systems
@@ -32,6 +34,9 @@ namespace Systems
         private float deltaTime;
         private int iterations;
 
+        //BORRAR
+        public static List<Vector2> contactPoints = new List<Vector2>();
+
         public int Iterations 
         { 
             get { return iterations; } 
@@ -51,42 +56,61 @@ namespace Systems
         public override void Update()
         {
             DebugTimer.Start("Physics");
-            for(int i = 0; i < iterations; ++i)
+            contactPoints.Clear();
+
+            float dt = deltaTime / (float)iterations;
+
+            for (int i = 1; i < iterations; ++i)
             {
-                StepPhysics();
+                entityManager.ForEachComponent((Entity e, PhysicsCmp physics) =>
+                {
+                    IntegrateEntity(e, physics, dt);
+                });
+
                 CheckCollisions();
                 SolveCollisions();
             }
+
+            //Reset the force on the last iteration
             entityManager.ForEachComponent((Entity e, PhysicsCmp physics) =>
             {
-                physics.Force = Vector2.Zero;
+                IntegrateEntity(e, physics, dt);
+
+                physics.Force  = Vector2.Zero;
+                physics.Torque = 0.0f;
             });
+            CheckCollisions();
+            SolveCollisions();
 
             DebugTimer.Stop("Physics");
         }
 
-        public void StepPhysics()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void IntegrateEntity(Entity e, PhysicsCmp physics, float dt)
         {
-            float dt = deltaTime / iterations;
+            physics.Force          += Gravity * physics.GravityMultiplier;
 
-            entityManager.ForEachComponent((Entity e, PhysicsCmp physics) =>
-            {
-                physics.Force += Gravity * physics.GravityMultiplier;
-                Vector2 acceleration = physics.Force * physics.InverseMass;
-                physics.LinearVelocity += acceleration * dt;
+            physics.LinearVelocity += physics.Force * physics.InverseMass * dt;
+            physics.AngularVelocity += physics.Torque * physics.InverseIntertia * dt;
 
-                //Clamp the velocity before updating the position
-                physics.LinearVelocity.X = Math.Clamp(physics.LinearVelocity.X,
-                    -physics.MaxLinearVelocity.X, physics.MaxLinearVelocity.X);
-                physics.LinearVelocity.Y = Math.Clamp(physics.LinearVelocity.Y,
-                    -physics.MaxLinearVelocity.Y, physics.MaxLinearVelocity.Y);
+            //Clamp the linear velocity before updating the position
+            physics.LinearVelocity.X = Math.Clamp(physics.LinearVelocity.X,
+                -physics.MaxLinearVelocity.X, physics.MaxLinearVelocity.X);
+            physics.LinearVelocity.Y = Math.Clamp(physics.LinearVelocity.Y,
+                -physics.MaxLinearVelocity.Y, physics.MaxLinearVelocity.Y);
 
-                e.Position += physics.LinearVelocity * dt;
-            });
+            //Clamp the angular velocity before updating the rotation
+            physics.AngularVelocity = Math.Clamp(physics.AngularVelocity,
+                -physics.MaxAngularVelocity, physics.MaxAngularVelocity);
+
+            e.Position += physics.LinearVelocity * dt;
+            e.Rotation += physics.AngularVelocity * dt;
         }
 
         public void CheckCollisions()
         {
+            UpdateColliderTransforms();
+
             var collisionCmps = entityManager.GetComponents<CollisionCmp>();
             for (int i = 0; i < collisionCmps.Count - 1; ++i)
             {
@@ -99,6 +123,11 @@ namespace Systems
                     CollisionCmp collision2 = collisionCmps[j];
                     Entity e2 = entityManager.
                         GetEntity(collisionCmps.GetKey(j));
+
+                    if (!CollisionHandler.AABBVsAABB(
+                        collision1.Collider.BoundingAABB,
+                        collision2.Collider.BoundingAABB))
+                        continue;
 
                     if (entityManager.TryGetComponent(e1, out PhysicsCmp physics1) &&
                         entityManager.TryGetComponent(e2, out PhysicsCmp physics2))
@@ -122,6 +151,15 @@ namespace Systems
             }
         }
 
+        public void UpdateColliderTransforms()
+        {
+            entityManager.ForEachComponent(
+                (Entity e, CollisionCmp cmp) =>
+            {
+                cmp.CacheTransform(e);
+            });
+        }
+
         public void SolveCollisions()
         {
             for (int i = 0; i < collisions.Count; ++i)
@@ -129,12 +167,94 @@ namespace Systems
                 CollisionManifold manifold = collisions[i];
                 SolveCollision(ref manifold);
                 SeparateBodies(ref manifold);
+
+                if (collisions[i].NumContacts == 1)
+                    contactPoints.Add(collisions[i].Contact1);
+                else if(collisions[i].NumContacts == 2)
+                {
+                    contactPoints.Add(collisions[i].Contact1);
+                    contactPoints.Add(collisions[i].Contact2);
+                }
             }
 
             collisions.Clear();
         }
 
         public void SolveCollision(ref CollisionManifold manifold)
+        {
+            Vector2[] contacts   = new Vector2[2] { manifold.Contact1, manifold.Contact2 };
+            Vector2[] impulses = new Vector2[2];
+            Vector2[] r1List = new Vector2[2];
+            Vector2[] r2List = new Vector2[2];
+            float inverseContacts = 1.0f / (float)manifold.NumContacts;
+
+            for (int i = 0;i < manifold.NumContacts; ++i)
+            {
+                Vector2 r1 = contacts[i] - manifold.Entity1.Position;
+                Vector2 r2 = contacts[i] - manifold.Entity2.Position;
+                r1List[i] = r1;
+                r2List[i] = r2;
+                r1 = new Vector2(-r1.Y, r1.X);
+                r2 = new Vector2(-r2.Y, r2.X);
+
+                Vector2 vel1 = manifold.Physics1.LinearVelocity +
+                    r1 * manifold.Physics1.AngularVelocity;
+                Vector2 vel2 = manifold.Physics2.LinearVelocity +
+                    r2 * manifold.Physics2.AngularVelocity;
+
+                Vector2 relativeVel = vel1 - vel2;
+
+                //The bodies are separating
+                float velAlongNormal = Vector2.Dot(relativeVel, manifold.Normal);
+                if (velAlongNormal > 0.0f)
+                    continue;
+
+                float e = (manifold.Physics1.Restitution + manifold.Physics2.Restitution)
+                                * 0.5f;
+                float j = -(1.0f + e) * velAlongNormal;
+                float dot1 = Vector2.Dot(r1, manifold.Normal);
+                float dot2 = Vector2.Dot(r2, manifold.Normal);
+
+                j /= (manifold.Physics1.InverseMass + manifold.Physics2.InverseMass +
+                    (dot1 * dot1 * manifold.Physics1.InverseIntertia) + 
+                    (dot2 * dot2 * manifold.Physics2.InverseIntertia));
+                j *= inverseContacts;
+
+                impulses[i] = j * manifold.Normal;
+
+                //angulars[i] = dot1 * j * manifold.Physics1.InverseIntertia;
+                //angulars[i + 2] = dot2 * j * manifold.Physics2.InverseIntertia;
+                /*
+                manifold.Physics1.LinearVelocity += j * manifold.Physics1.InverseMass *
+                    manifold.Normal * inverseContacts;
+                manifold.Physics2.LinearVelocity -= j * manifold.Physics2.InverseMass *
+                    manifold.Normal * inverseContacts;
+
+                manifold.Physics1.AngularVelocity += dot1 * j *
+                     manifold.Physics1.InverseIntertia * inverseContacts;
+                manifold.Physics2.AngularVelocity -= dot2 * j *
+                     manifold.Physics2.InverseIntertia * inverseContacts;
+                */
+            }
+
+            for(int i = 0;i < manifold.NumContacts; ++i)
+            {
+                Vector2 impulse = impulses[i];
+
+                manifold.Physics1.LinearVelocity += impulse *
+                    manifold.Physics1.InverseMass;
+                manifold.Physics2.LinearVelocity -= impulse *
+                    manifold.Physics2.InverseMass;
+
+                manifold.Physics1.AngularVelocity += manifold.Physics1.InverseIntertia * 
+                    Util.Cross2D(r1List[i], impulse);
+                manifold.Physics2.AngularVelocity -= manifold.Physics2.InverseIntertia *
+                    Util.Cross2D(r2List[i], impulse);
+            }
+            
+        }
+
+        public void SolveCollision1(ref CollisionManifold manifold)
         {
             Vector2 relativeVel = manifold.Physics1.LinearVelocity -
                 manifold.Physics2.LinearVelocity;
@@ -159,8 +279,8 @@ namespace Systems
         {
             float totalInvMass = manifold.Physics1.InverseMass +
                 manifold.Physics2.InverseMass;
-            float t1          = manifold.Physics1.InverseMass / totalInvMass;
-            float t2          = manifold.Physics2.InverseMass / totalInvMass;
+            float t1           = manifold.Physics1.InverseMass / totalInvMass;
+            float t2           = manifold.Physics2.InverseMass / totalInvMass;
 
             manifold.Entity1.Position += (manifold.Normal * manifold.Depth * t1);
             manifold.Entity2.Position -= (manifold.Normal * manifold.Depth * t2);
@@ -184,10 +304,10 @@ namespace Systems
             CircleCollider circle2 = (CircleCollider) cmp2.Collider;
 
             return CollisionHandler.CircleVsCircle(
-                cmp1.Transform.GetWorldPosition(e1),
-                circle1.Radius * cmp1.Transform.GetWorldScale(e1),
-                cmp2.Transform.GetWorldPosition(e2),
-                circle2.Radius * cmp2.Transform.GetWorldScale(e2),
+                cmp1.Transform.CachedWorldPosition,
+                circle1.CachedRadius,
+                cmp2.Transform.CachedWorldPosition,
+                circle2.CachedRadius,
                 out manifold);
         }
 
@@ -199,9 +319,9 @@ namespace Systems
             RectangleCollider rect = (RectangleCollider)cmp2.Collider;
 
             bool ret = CollisionHandler.RectangleVSCircle(
-                rect.GetVertices(e2, cmp2),
-                cmp1.Transform.GetWorldPosition(e1), 
-                circle.Radius * cmp1.Transform.GetWorldScale(e1),
+                rect.Vertices,
+                cmp1.Transform.CachedWorldPosition, 
+                circle.CachedRadius,
                 out manifold);
             manifold.Normal = -manifold.Normal;
 
@@ -216,12 +336,12 @@ namespace Systems
             CircleCollider circle  = (CircleCollider)cmp2.Collider;
 
             bool ret = CollisionHandler.RectangleVSCircle(
-                rect.GetVertices(e2, cmp2),
-                cmp1.Transform.GetWorldPosition(e1), 
-                circle.Radius * cmp2.Transform.GetWorldScale(e2),
+                rect.Vertices,
+                cmp2.Transform.CachedWorldPosition, 
+                circle.CachedRadius,
                 out manifold);
 
-            manifold.Normal = -manifold.Normal;
+            //manifold.Normal = -manifold.Normal;
 
             return ret;
         }
@@ -235,8 +355,10 @@ namespace Systems
             manifold = default;
 
             return CollisionHandler.RectangleVsRectangle(
-                cmp1.Transform.GetWorldPosition(e1),rect1.GetVertices(e1, cmp1),
-                cmp2.Transform.GetWorldPosition(e2),rect2.GetVertices(e2, cmp2), 
+                cmp1.Transform.CachedWorldPosition,
+                rect1.Vertices, rect1.Normals,
+                cmp2.Transform.CachedWorldPosition,
+                rect2.Vertices, rect2.Normals, 
                 out manifold);
         }
     }

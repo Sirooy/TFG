@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Core;
+using Engine.Debug;
 
 namespace Engine.Graphics
 {
@@ -41,10 +42,10 @@ namespace Engine.Graphics
 
         private void Create(int width, int height)
         {
-            Debug.Assert(width >= MinSize && width <= MaxSize,
+            DebugAssert.Success(width >= MinSize && width <= MaxSize,
                 "Width must be between {0} and {1}. Width provided: {2}",
                 MinSize, MaxSize, width);
-            Debug.Assert(height >= MinSize && height <= MaxSize,
+            DebugAssert.Success(height >= MinSize && height <= MaxSize,
                 "Height must be between {0} and {1}. Width provided: {2}",
                 MinSize, MaxSize, height);
 
@@ -74,11 +75,6 @@ namespace Engine.Graphics
             coords.X *= (float) renderTarget.Width / destinationRect.Width;
             coords.Y *= (float) renderTarget.Height / destinationRect.Height;
         }
-
-        //public Vector2 ScreenToWindowCoords(Vector2 coords)
-        //{
-        //
-        //}
 
         public void Attach()
         {

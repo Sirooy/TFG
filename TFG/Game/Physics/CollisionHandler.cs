@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using Core;
 using Engine.Core;
 using Microsoft.Xna.Framework;
@@ -7,6 +8,12 @@ namespace Physics
 {
     public static class CollisionHandler
     {
+        public static bool AABBVsAABB(in AABB a1, in AABB a2)
+        {
+            return a1.Right > a2.Left && a1.Left < a2.Right &&
+                a1.Bottom > a2.Top && a1.Top < a2.Bottom;
+        }
+
         public static bool CircleVsCircle(Vector2 c1, float r1, Vector2 c2, float r2)
         {
             float totalRadius = r1 + r2;
@@ -37,7 +44,9 @@ namespace Physics
                 manifold.Depth  = totalRadius - distance;
             }
 
-            manifold.Collision = true;
+            manifold.NumContacts = 1;
+            manifold.Contact1    = c1 - manifold.Normal * r1;
+
             return true;
         }
 
@@ -129,6 +138,9 @@ namespace Physics
             manifold.Normal = normal;
             manifold.Depth = minDepth;
 
+            manifold.NumContacts = 1;
+            manifold.Contact1    = center + normal * (radius - minDepth);
+
             return true;
         }
 
@@ -150,26 +162,10 @@ namespace Physics
             return minIndex;
         }
 
-        public static void ProjectVertices(Vector2[] vertices, Vector2 normal, 
-            out float min, out float max)
-        {
-            float proj = Vector2.Dot(vertices[0], normal);
-            min = proj;
-            max = proj;
-
-            for(int i = 1;i <  vertices.Length; ++i)
-            {
-                proj = Vector2.Dot(vertices[i], normal);
-
-                if (proj < min) min = proj;
-                if (proj > max) max = proj;
-            }
-        }
-
         //SAT Implementation
         public static bool RectangleVsRectangle(
-            Vector2 center1, Vector2[] vertices1,
-            Vector2 center2, Vector2[] vertices2, 
+            Vector2 center1, Vector2[] vertices1, Vector2[] normals1,
+            Vector2 center2, Vector2[] vertices2, Vector2[] normals2, 
             out CollisionManifold manifold)
         {
             manifold = new CollisionManifold();
@@ -177,26 +173,17 @@ namespace Physics
             Vector2 normal = Vector2.Zero;
             float minDepth = float.MaxValue;
 
-            Vector2 edge1 = vertices1[1] - vertices1[0];
-            Vector2 edge2 = vertices1[2] - vertices1[1];
-            Vector2 n1    = new Vector2(-edge1.Y, edge1.X);
-            Vector2 n2    = new Vector2(-edge2.Y, edge2.X);
-            n1.Normalize();
-            n2.Normalize();
-
-            Vector2 edge3 = vertices2[1] - vertices2[0];
-            Vector2 edge4 = vertices2[2] - vertices2[1];
-            Vector2 n3 = new Vector2(-edge3.Y, edge3.X);
-            Vector2 n4 = new Vector2(-edge4.Y, edge4.X);
-            n3.Normalize();
-            n4.Normalize();
+            Vector2 n1 = normals1[0];
+            Vector2 n2 = normals1[1];
+            Vector2 n3 = normals2[0];
+            Vector2 n4 = normals2[1];
 
             //First edge of vertices 1
             float min1 = Vector2.Dot(n1, vertices1[0]);
             float max1 = Vector2.Dot(n1, vertices1[2]);
-            if (min1 > max1) Util.Swap(ref min1, ref max1);
+            //if (min1 > max1) Util.Swap(ref min1, ref max1);
 
-            GetMinAndMaxProjections(vertices2, n1, 
+            ProjectVertices(vertices2, n1, 
                 out float min2, out float max2);
             if (max1 < min2 || max2 < min1 ) return false;
             else
@@ -210,11 +197,11 @@ namespace Physics
             }
 
             //Second edge of vertices 1
-            min1 = Vector2.Dot(n2, vertices1[2]);
-            max1 = Vector2.Dot(n2, vertices1[0]);
-            if (min1 > max1) Util.Swap(ref min1, ref max1);
+            min1 = Vector2.Dot(n2, vertices1[0]);
+            max1 = Vector2.Dot(n2, vertices1[2]);
+            //if (min1 > max1) Util.Swap(ref min1, ref max1);
 
-            GetMinAndMaxProjections(vertices2, n2,
+            ProjectVertices(vertices2, n2,
                 out min2, out max2);
             if (max1 < min2 || max2 < min1) return false;
             else
@@ -231,9 +218,9 @@ namespace Physics
             //First edge of vertices 2
             min1 = Vector2.Dot(n3, vertices2[0]);
             max1 = Vector2.Dot(n3, vertices2[2]);
-            if (min1 > max1) Util.Swap(ref min1, ref max1);
+            //if (min1 > max1) Util.Swap(ref min1, ref max1);
 
-            GetMinAndMaxProjections(vertices1, n3,
+            ProjectVertices(vertices1, n3,
                 out min2, out max2);
             if (max1 < min2 || max2 < min1) return false;
             else
@@ -246,11 +233,11 @@ namespace Physics
                 }
             }
             //Second edge of vertices 2
-            min1 = Vector2.Dot(n4, vertices2[2]);
-            max1 = Vector2.Dot(n4, vertices2[0]);
-            if (min1 > max1) Util.Swap(ref min1, ref max1);
+            min1 = Vector2.Dot(n4, vertices2[0]);
+            max1 = Vector2.Dot(n4, vertices2[2]);
+            //if (min1 > max1) Util.Swap(ref min1, ref max1);
 
-            GetMinAndMaxProjections(vertices1, n4,
+            ProjectVertices(vertices1, n4,
                 out min2, out max2);
             if (max1 < min2 || max2 < min1) return false;
             else
@@ -269,21 +256,168 @@ namespace Physics
             manifold.Normal = normal;
             manifold.Depth  = minDepth;
 
+            FindRectangleVsRectangleContactPoints(vertices1,
+                vertices2, ref manifold);
+
             return true;
         }
 
-        private static void GetMinAndMaxProjections(
-            Vector2[] vertices, Vector2 normal,
-            out float min, out float max)
+        private static void FindRectangleVsRectangleContactPoints(
+            Vector2[] vertices1,
+            Vector2[] vertices2,
+            ref CollisionManifold manifold)
         {
-            min = float.MaxValue;
-            max = float.MinValue;
+            manifold.NumContacts = 1;
+            float minDistSquared = float.MaxValue;
 
-            for(int i = 0;i < vertices.Length; ++i)
+            for(int i = 0;i < vertices1.Length; ++i)
+            {
+                Vector2 vertex = vertices1[i];
+
+                for(int j = 0;j < vertices2.Length; ++j)
+                {
+                    ClosestPointToLineSegment(vertex, vertices2[j],
+                        vertices2[(j + 1) % vertices2.Length],
+                        out float distSquared, out Vector2 point);
+
+                    if(NearlyEqual(minDistSquared, distSquared))
+                    {
+                        if(!NearlyEqual(point, manifold.Contact1))
+                        {
+                            manifold.NumContacts = 2;
+                            manifold.Contact2 = point;
+                        }
+                    }
+                    else if(distSquared <  minDistSquared)
+                    {
+                        manifold.Contact1 = point;
+                        minDistSquared = distSquared;
+                    }
+                }
+            }
+
+            for (int i = 0; i < vertices2.Length; ++i)
+            {
+                Vector2 vertex = vertices2[i];
+
+                for (int j = 0; j < vertices1.Length; ++j)
+                {
+                    ClosestPointToLineSegment(vertex, vertices1[j],
+                        vertices1[(j + 1) % vertices1.Length],
+                        out float distSquared, out Vector2 point);
+
+                    if (NearlyEqual(minDistSquared, distSquared))
+                    {
+                        if (!NearlyEqual(point, manifold.Contact1))
+                        {
+                            manifold.NumContacts = 2;
+                            manifold.Contact2 = point;
+
+                        }
+                    }
+                    else if (distSquared < minDistSquared)
+                    {
+                        manifold.Contact1 = point;
+                        minDistSquared = distSquared;
+                    }
+                }
+            }
+        }
+
+        private static bool NearlyEqual(float a, float b)
+        {
+            const float EPSILON = 0.05f;
+
+            return MathF.Abs(a - b) < EPSILON;
+        }
+
+        private static bool NearlyEqual(Vector2 a, Vector2 b) 
+        {
+            return NearlyEqual(a.X, b.X) && NearlyEqual(a.Y, b.Y);
+        }
+
+        private static void FindRectangleVsRectangleContactPoints1(
+            Vector2[] vertices1,
+            Vector2[] vertices2, 
+            ref CollisionManifold manifold)
+        {
+            //Normal alwais points from object 2 to object 1
+            int v1Index = FindFurthestVertexIndexAlongNormal(vertices1, 
+                -manifold.Normal); 
+            int v2Index = FindFurthestVertexIndexAlongNormal(vertices2,
+                manifold.Normal);
+        }
+
+        //The significant face must satisfy:
+        //* The face includes the selected vertex
+        //* The face normal is the most parallel with the collision normal
+        private static int FindSignificantFace(Vector2[] vertices, 
+            Vector2 normal, int selectedVertex)
+        {
+            int nextVertex = (selectedVertex + 1) % vertices.Length;
+
+            int prevVertex = selectedVertex - 1;
+            if (prevVertex < 0) prevVertex = vertices.Length - 1;
+
+            Vector2 edge1       = vertices[selectedVertex] - vertices[prevVertex];
+            Vector2 edge2       = vertices[nextVertex] - vertices[selectedVertex];
+            Vector2 faceNormal1 = Vector2.Normalize(new Vector2(-edge1.Y, edge1.X));
+            Vector2 faceNormal2 = Vector2.Normalize(new Vector2(-edge2.Y, edge2.X));
+
+            if (Vector2.Dot(faceNormal1, normal) > Vector2.Dot(faceNormal2, normal))
+                return prevVertex;
+            else
+                return nextVertex;
+        }
+
+
+
+        private static int FindFurthestVertexIndexAlongNormal(Vector2[] vertices, 
+            Vector2 normal)
+        {
+            int index     = 0;
+            float maxProj = Vector2.Dot(vertices[0], normal);
+
+            for(int i = 1;i < vertices.Length; ++i)
             {
                 float proj = Vector2.Dot(vertices[i], normal);
+
+                if(proj > maxProj)
+                {
+                    index   = i;
+                    maxProj = proj;
+                }
+            }
+
+            return index;
+        }
+
+        public static void ClosestPointToLineSegment(Vector2 point, 
+            Vector2 start, Vector2 end, out float distSquared, out Vector2 result)
+        {
+            Vector2 se = end - start;
+            Vector2 sp = point - start;
+
+            float t = Vector2.Dot(se, sp) / se.LengthSquared();
+            t       = Math.Clamp(t, 0.0f, 1.0f);
+
+            result      = start + se * t;
+            distSquared = Vector2.DistanceSquared(point, result);
+        }
+
+        public static void ProjectVertices(Vector2[] vertices, Vector2 normal,
+            out float min, out float max)
+        {
+            float proj = Vector2.Dot(vertices[0], normal);
+            min = proj;
+            max = proj;
+
+            for (int i = 1; i < vertices.Length; ++i)
+            {
+                proj = Vector2.Dot(vertices[i], normal);
+
                 if (proj < min) min = proj;
-                if (proj > max) max = proj; 
+                if (proj > max) max = proj;
             }
         }
     }

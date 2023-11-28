@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Engine.Core;
+using Engine.Debug;
 
 namespace Engine.Ecs
 {
@@ -37,7 +38,7 @@ namespace Engine.Ecs
         {
             int id = IdMetadataGenerator<System, TSystem>.Id;
 
-            Debug.Assert(!systems.ContainsKey(id),
+            DebugAssert.Success(!systems.ContainsKey(id),
                 "System \"{0}\" has already been registered",
                 typeof(TSystem).Name);
 
@@ -49,7 +50,7 @@ namespace Engine.Ecs
         {
             int id = IdMetadataGenerator<System, TSystem>.Id;
 
-            Debug.Assert(systems.ContainsKey(id),
+            DebugAssert.Success(systems.ContainsKey(id),
                 "System \"{0}\" has not been registered",
                 typeof(TSystem).Name);
 
@@ -61,7 +62,7 @@ namespace Engine.Ecs
         {
             int id = IdMetadataGenerator<System, TSystem>.Id;
 
-            Debug.Assert(systems.ContainsKey(id),
+            DebugAssert.Success(systems.ContainsKey(id),
                 "System \"{0}\" has not been registered",
                 typeof(TSystem).Name);
 
@@ -73,14 +74,14 @@ namespace Engine.Ecs
         {
             int id = IdMetadataGenerator<System, TSystem>.Id;
 
-            Debug.Assert(systems.ContainsKey(id),
+            DebugAssert.Success(systems.ContainsKey(id),
                 "System \"{0}\" has not been registered",
                 typeof(TSystem).Name);
 
             int index = activeSystems.FindIndex(
                 (ActiveSystem sys) => { return sys.Id == id; });
 
-            Debug.Assert(index != -1,
+            DebugAssert.Success(index != -1,
                 "System \"{0}\" has not been enabled",
                 typeof(TSystem).Name);
 

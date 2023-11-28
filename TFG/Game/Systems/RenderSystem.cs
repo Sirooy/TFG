@@ -1,13 +1,13 @@
 ﻿using Cmps;
 using Core;
 using Engine.Core;
+using Engine.Debug;
 using Engine.Ecs;
 using Engine.Graphics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Physics;
 using System;
-using TFG;
 
 namespace Systems
 {
@@ -34,7 +34,7 @@ namespace Systems
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
             entityManager.ForEachComponent((Entity e, SpriteCmp sprite) =>
             {
-                Debug.Assert(sprite.Texture != null, 
+                DebugAssert.Success(sprite.Texture != null, 
                     "Cannot draw sprite with null texture");
 
                 spriteBatch.Draw(sprite.Texture, sprite.Transform.GetWorldPosition(e),

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Engine.Core;
+using Engine.Debug;
 using TFG;
 
 namespace Engine.Ecs
@@ -65,7 +66,7 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
 
@@ -77,7 +78,7 @@ namespace Engine.Ecs
 
         public void RemoveEntity(TEntity entity)
         {
-            Debug.Assert(entity != null && entity.IsValid,
+            DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot remove invalid or null entity");
 
             //Remove all the components
@@ -106,10 +107,10 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(id == cmps.Count, 
+            DebugAssert.Success(id == cmps.Count, 
                 "Component \"{0}\" has already been registered", 
                 typeof(TCmp).Name);
-            Debug.Assert(id < MaxComponentTypes, 
+            DebugAssert.Success(id < MaxComponentTypes, 
                 "Maximun number of registered components reached");
 
             cmps.Add(new CmpStorage<TCmp>());
@@ -121,9 +122,9 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(entity != null && entity.IsValid, 
+            DebugAssert.Success(entity != null && entity.IsValid, 
                 "Cannot add component to invalid or null entity");
-            Debug.Assert(id < cmps.Count, 
+            DebugAssert.Success(id < cmps.Count, 
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
 
@@ -137,7 +138,7 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
 
@@ -148,12 +149,12 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(entity != null && entity.IsValid,
+            DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot get component of invalid or null entity");
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
-            Debug.Assert(entity.HasCmp<TCmp>(),
+            DebugAssert.Success(entity.HasCmp<TCmp>(),
                 "Entity with id \"{0}\" does not have the component \"{1}\"",
                 entity.Id, typeof(TCmp).Name);
 
@@ -165,12 +166,12 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(entity != null && entity.IsValid,
+            DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot get component of invalid or null entity");
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
-            Debug.Assert(entity.HasCmp<TCmp>(),
+            DebugAssert.Success(entity.HasCmp<TCmp>(),
                 "Entity with id \"{0}\" does not have the component \"{1}\"",
                 entity.Id, typeof(TCmp).Name);
 
@@ -182,9 +183,9 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(entity != null && entity.IsValid,
+            DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot get component of invalid or null entity");
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
 
@@ -196,9 +197,9 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(entity != null && entity.IsValid,
+            DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot get component of invalid or null entity");
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
 
@@ -212,12 +213,12 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(entity != null && entity.IsValid,
+            DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot remove component of invalid or null entity");
-            Debug.Assert(id < cmps.Count, 
+            DebugAssert.Success(id < cmps.Count, 
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
-            Debug.Assert(entity.HasCmp<TCmp>(),
+            DebugAssert.Success(entity.HasCmp<TCmp>(),
                 "Entity with id \"{0}\" does not have the component \"{1}\"",
                 entity.Id, typeof(TCmp).Name);
 
@@ -230,15 +231,15 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(entity != null && entity.IsValid,
+            DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot remove component of invalid or null entity");
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
-            Debug.Assert(entity.HasCmp<TCmp>(),
+            DebugAssert.Success(entity.HasCmp<TCmp>(),
                 "Entity with id \"{0}\" does not have the component \"{1}\"",
                 entity.Id, typeof(TCmp).Name);
-            Debug.Assert(count > 0, "Invalid amount of components to remove ({0})", 
+            DebugAssert.Success(count > 0, "Invalid amount of components to remove ({0})", 
                 count);
 
             CmpStorage<TCmp> storage = (CmpStorage<TCmp>)cmps[id];
@@ -263,7 +264,7 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
 
@@ -278,7 +279,7 @@ namespace Engine.Ecs
         {
             int id = CmpMetadataGenerator<TCmp>.Id;
 
-            Debug.Assert(id < cmps.Count,
+            DebugAssert.Success(id < cmps.Count,
                 "Component \"{0}\" has not been registered",
                 typeof(TCmp).Name);
 
@@ -360,7 +361,7 @@ namespace Engine.Ecs
         #region ForEachEntity passing component lists
         public void ForEachEntity<TCmp1>(Action<TEntity, MSAItemList<TCmp1>> action)
         {
-            Debug.Assert(CmpMetadataGenerator<TCmp1>.Id < cmps.Count, 
+            DebugAssert.Success(CmpMetadataGenerator<TCmp1>.Id < cmps.Count, 
                 "Component \"{0}\" has not been registered", typeof(TCmp1).Name);
 
             var cmps1 = ((CmpStorage<TCmp1>)cmps[CmpMetadataGenerator<TCmp1>.Id]).Data;
@@ -378,9 +379,9 @@ namespace Engine.Ecs
         public void ForEachEntity<TCmp1, TCmp2>
             (Action<TEntity, MSAItemList<TCmp1>, MSAItemList<TCmp2>> action)
         {
-            Debug.Assert(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp1).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp2).Name);
 
             var cmps1 = ((CmpStorage<TCmp1>)cmps[CmpMetadataGenerator<TCmp1>.Id]).Data;
@@ -401,11 +402,11 @@ namespace Engine.Ecs
             (Action<TEntity, MSAItemList<TCmp1>, MSAItemList<TCmp2>, 
                 MSAItemList<TCmp3>> action)
         {
-            Debug.Assert(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp1).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp2).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp3>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp3>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp3).Name);
 
             var cmps1 = ((CmpStorage<TCmp1>)cmps[CmpMetadataGenerator<TCmp1>.Id]).Data;
@@ -429,13 +430,13 @@ namespace Engine.Ecs
             (Action<TEntity, MSAItemList<TCmp1>, MSAItemList<TCmp2>,
                 MSAItemList<TCmp3>, MSAItemList<TCmp4>> action)
         {
-            Debug.Assert(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp1).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp2).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp3>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp3>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp3).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp4>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp4>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp4).Name);
 
             var cmps1 = ((CmpStorage<TCmp1>)cmps[CmpMetadataGenerator<TCmp1>.Id]).Data;
@@ -463,15 +464,15 @@ namespace Engine.Ecs
                 MSAItemList<TCmp3>, MSAItemList<TCmp4>,
                 MSAItemList<TCmp5>> action)
         {
-            Debug.Assert(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp1>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp1).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp2>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp2).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp3>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp3>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp3).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp4>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp4>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp4).Name);
-            Debug.Assert(CmpMetadataGenerator<TCmp5>.Id < cmps.Count,
+            DebugAssert.Success(CmpMetadataGenerator<TCmp5>.Id < cmps.Count,
                 "Component \"{0}\" has not been registered", typeof(TCmp5).Name);
 
             var cmps1 = ((CmpStorage<TCmp1>)cmps[CmpMetadataGenerator<TCmp1>.Id]).Data;

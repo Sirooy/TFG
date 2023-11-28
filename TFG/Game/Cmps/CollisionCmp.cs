@@ -1,6 +1,6 @@
 ﻿using Core;
 using Physics;
-using Engine.Core;
+using Engine.Debug;
 
 namespace Cmps
 {
@@ -12,11 +12,17 @@ namespace Cmps
 
         public CollisionCmp(ColliderShape shape)
         {
-            Debug.Assert(shape != null, "Cannot create \"{0}\" with null shape",
+            DebugAssert.Success(shape != null, "Cannot create \"{0}\" with null shape",
                 typeof(CollisionCmp).Name);
 
             this.Transform = new EntityChildTransform();
             this.Collider  = shape;
+        }
+
+        public void CacheTransform(Entity e)
+        {
+            Transform.CacheTransform(e);
+            Collider.RecalculateBoundingAABBAndTransform(in Transform);
         }
     }
 }

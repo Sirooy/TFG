@@ -2,9 +2,10 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Engine.Graphics;
+using Engine.Core;
+using Engine.Debug;
 
-namespace Engine.Core
+namespace Engine.Graphics
 {
     public class ShapeBatch : IDisposable
     {
@@ -22,21 +23,21 @@ namespace Engine.Core
         public ShapeBatch(GraphicsDevice graphicsDevice, int capacity = 100)
         {
             this.graphicsDevice = graphicsDevice;
-            this.vertices       = new VertexPositionColor[NUM_VERTEX_PER_SHAPE * capacity];
-            this.indices        = new int[NUM_INDICES_PER_SHAPE * capacity];
+            vertices = new VertexPositionColor[NUM_VERTEX_PER_SHAPE * capacity];
+            indices = new int[NUM_INDICES_PER_SHAPE * capacity];
 
-            this.currentVertexCount = 0;
-            this.currentIndexCount  = 0;
-            this.beginCalled        = false;
+            currentVertexCount = 0;
+            currentIndexCount = 0;
+            beginCalled = false;
 
-            this.basicEffect = new BasicEffect(graphicsDevice);
-            this.basicEffect.VertexColorEnabled = true;
-            this.basicEffect.LightingEnabled    = false;
-            this.basicEffect.TextureEnabled     = false;
-            this.basicEffect.FogEnabled         = false;
-            this.basicEffect.World              = Matrix.Identity;
-            this.basicEffect.View               = Matrix.Identity;
-            this.basicEffect.Projection         = Matrix.Identity;
+            basicEffect = new BasicEffect(graphicsDevice);
+            basicEffect.VertexColorEnabled = true;
+            basicEffect.LightingEnabled = false;
+            basicEffect.TextureEnabled = false;
+            basicEffect.FogEnabled = false;
+            basicEffect.World = Matrix.Identity;
+            basicEffect.View = Matrix.Identity;
+            basicEffect.Projection = Matrix.Identity;
         }
 
         public void Dispose()
@@ -49,19 +50,18 @@ namespace Engine.Core
 
         public void Begin()
         {
-            Debug.Assert(!beginCalled, "Begin cannot be called again until End" +
+            DebugAssert.Success(!beginCalled, "Begin cannot be called again until End" +
                 " has been called");
 
-            Viewport viewport = graphicsDevice.Viewport;
-            this.basicEffect.Projection = Matrix.CreateOrthographicOffCenter
+            Viewport viewport = graphicsDevice.Viewport;       
+            basicEffect.Projection = Matrix.CreateOrthographicOffCenter
                 (0.0f, viewport.Width, viewport.Height, 0.0f, 0.0f, 1.0f);
 
-            this.currentVertexCount = 0;
-            this.currentIndexCount  = 0;
-            this.beginCalled        = true;
+            currentVertexCount = 0;
+            currentIndexCount = 0;
+            beginCalled = true;
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public void Begin(Camera2D camera)
         {
             int screenWidth = camera.Screen.Width;
@@ -95,7 +95,7 @@ namespace Engine.Core
 
         #region Filled Rectangle
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawFilledRectangle(Rectangle rectangle, Color color, 
+        public void DrawFilledRectangle(Rectangle rectangle, Color color,
             float layerDepth = 0.0f)
         {
 
@@ -108,12 +108,12 @@ namespace Engine.Core
         public void DrawFilledRectangle(Vector2 position, Vector2 size, Color color,
             float layerDepth = 0.0f)
         {
-            Debug.Assert(beginCalled, "Cannot draw without calling begin first");
+            DebugAssert.Success(beginCalled, "Cannot draw without calling begin first");
             FlushIfNeeded();
 
-            float left   = position.X;
-            float right  = position.X + size.X;
-            float top    = position.Y;
+            float left = position.X;
+            float right = position.X + size.X;
+            float top = position.Y;
             float bottom = position.Y + size.Y;
 
             vertices[currentVertexCount + 0] = new VertexPositionColor(
@@ -129,7 +129,7 @@ namespace Engine.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawFilledRectangle(Rectangle rectangle, float rotation, 
+        public void DrawFilledRectangle(Rectangle rectangle, float rotation,
             Vector2 origin, Color color, float layerDepth = 0.0f)
         {
             DrawFilledRectangle(
@@ -141,7 +141,7 @@ namespace Engine.Core
         public void DrawFilledRectangle(Vector2 position, Vector2 size,
             float rotation, Vector2 origin, Color color, float layerDepth = 0.0f)
         {
-            Debug.Assert(beginCalled, "Cannot draw without calling begin first");
+            DebugAssert.Success(beginCalled, "Cannot draw without calling begin first");
             FlushIfNeeded();
 
             CreateRectangleRotatedVertices(position, size, rotation, origin,
@@ -165,7 +165,7 @@ namespace Engine.Core
 
         #region Rectangle
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawRectangle(Rectangle rectangle, float thickness, 
+        public void DrawRectangle(Rectangle rectangle, float thickness,
             Color color, float layerDepth = 0.0f)
         {
             DrawRectangle(
@@ -177,10 +177,10 @@ namespace Engine.Core
         public void DrawRectangle(Vector2 position, Vector2 size,
             float thickness, Color color, float layerDepth = 0.0f)
         {
-            Debug.Assert(beginCalled, "Cannot draw without calling begin first");
-            float left   = position.X;
-            float right  = position.X + size.X;
-            float top    = position.Y;
+            DebugAssert.Success(beginCalled, "Cannot draw without calling begin first");
+            float left = position.X;
+            float right = position.X + size.X;
+            float top = position.Y;
             float bottom = position.Y + size.Y;
 
             DrawLine(new Vector2(left, top), new Vector2(right, top),
@@ -194,7 +194,7 @@ namespace Engine.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawRectangle(Rectangle rectangle, float thickness, 
+        public void DrawRectangle(Rectangle rectangle, float thickness,
             float rotation, Vector2 origin, Color color, float layerDepth = 0.0f)
         {
             DrawRectangle(
@@ -206,7 +206,7 @@ namespace Engine.Core
         public void DrawRectangle(Vector2 position, Vector2 size, float thickness,
             float rotation, Vector2 origin, Color color, float layerDepth = 0.0f)
         {
-            Debug.Assert(beginCalled, "Cannot draw without calling begin first");
+            DebugAssert.Success(beginCalled, "Cannot draw without calling begin first");
             FlushIfNeeded();
 
             CreateRectangleRotatedVertices(position, size, rotation, origin,
@@ -222,7 +222,7 @@ namespace Engine.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void CreateRectangleRotatedVertices(Vector2 position, 
+        public static void CreateRectangleRotatedVertices(Vector2 position,
             Vector2 size, float rotation, Vector2 origin, out Vector2 bottomLeft,
             out Vector2 bottomRight, out Vector2 topLeft, out Vector2 topRight)
         {
@@ -245,38 +245,38 @@ namespace Engine.Core
 
             //Add the traslation to the rotated vertices
             bottomLeft = new Vector2(
-                (lCos - bSin) + position.X,
-                (bCos + lSin) + position.Y);
+                lCos - bSin + position.X,
+                bCos + lSin + position.Y);
             bottomRight = new Vector2(
-                (rCos - bSin) + position.X,
-                (bCos + rSin) + position.Y);
+                rCos - bSin + position.X,
+                bCos + rSin + position.Y);
             topLeft = new Vector2(
-                (lCos - tSin) + position.X,
-                (tCos + lSin) + position.Y);
+                lCos - tSin + position.X,
+                tCos + lSin + position.Y);
             topRight = new Vector2(
-                (rCos - tSin) + position.X,
-                (tCos + rSin) + position.Y);
+                rCos - tSin + position.X,
+                tCos + rSin + position.Y);
         }
         #endregion
 
         #region Line
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DrawLine(Vector2 start, Vector2 end, Color color, 
+        public void DrawLine(Vector2 start, Vector2 end, Color color,
             float layerDepth = 0.0f)
         {
             DrawLine(start, end, 1.0f, color, layerDepth);
         }
 
-        public void DrawLine(Vector2 start, Vector2 end, 
+        public void DrawLine(Vector2 start, Vector2 end,
             float thickness, Color color, float layerDepth = 0.0f)
         {
-            Debug.Assert(beginCalled, "Cannot draw without calling begin first");
+            DebugAssert.Success(beginCalled, "Cannot draw without calling begin first");
             FlushIfNeeded();
 
-            Vector2 dir  = end - start;
+            Vector2 dir = end - start;
             float length = dir.Length();
 
-            if(length != 0.0f)
+            if (length != 0.0f)
             {
                 dir /= length;
                 float halfThickness = thickness * 0.5f;
@@ -316,16 +316,16 @@ namespace Engine.Core
         public void DrawCircle(Vector2 center, float radius, int points, float thickness,
             Color color, float layerDepth = 0.0f)
         {
-            Debug.Assert(beginCalled, "Cannot draw without calling begin first");
-            Debug.Assert(points >= 3, "Cannot draw a circle with " +
+            DebugAssert.Success(beginCalled, "Cannot draw without calling begin first");
+            DebugAssert.Success(points >= 3, "Cannot draw a circle with " +
                 "less than 3 points. Points: {0}", points);
 
-            float angle = (MathF.PI * 2.0f) / points;
-            float cos   = MathF.Cos(angle);
-            float sin   = MathF.Sin(angle);
+            float angle = MathF.PI * 2.0f / points;
+            float cos = MathF.Cos(angle);
+            float sin = MathF.Sin(angle);
 
             Vector2 first = new Vector2(radius, 0.0f);
-            for (int i = 0;i < points; ++i)
+            for (int i = 0; i < points; ++i)
             {
                 Vector2 next = new Vector2(
                     first.X * cos - first.Y * sin,
@@ -343,27 +343,28 @@ namespace Engine.Core
         private void Flush()
         {
             //Return if there is nothing to draw
-            if(currentVertexCount == 0) return;
+            if (currentVertexCount == 0) return;
 
-            foreach(EffectPass pass in basicEffect.CurrentTechnique.Passes)
-            { 
-                pass.Apply(); 
+            foreach (EffectPass pass in basicEffect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
             }
 
             graphicsDevice.DrawUserIndexedPrimitives(
-                PrimitiveType.TriangleList, vertices, 0, 
+                PrimitiveType.TriangleList, vertices, 0,
                 currentVertexCount, indices, 0, currentIndexCount / 3);
 
-            currentIndexCount  = 0;
+            currentIndexCount = 0;
             currentVertexCount = 0;
         }
 
         public void End()
         {
-            Debug.Assert(beginCalled, "Cannot call End without calling Begin first");
+            DebugAssert.Success(beginCalled, "Cannot call End without calling Begin first");
 
             Flush();
-            this.beginCalled = false;
+            beginCalled      = false;
+            basicEffect.View = Matrix.Identity;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

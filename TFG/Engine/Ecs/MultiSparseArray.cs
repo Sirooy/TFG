@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Engine.Core;
+using Engine.Debug;
 
 namespace Engine.Ecs
 {
@@ -55,7 +56,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetKey(int index)
         {
-            Debug.Assert(index > -1 && index < remove.Count && remove[index] != NullKey,
+            DebugAssert.Success(index > -1 && index < remove.Count && remove[index] != NullKey,
                 "Cannot get key with index {0}. Index out of bounds", index);
             return remove[index];
         }
@@ -63,7 +64,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetItemCount(int key)
         {
-            Debug.Assert(Contains(key),
+            DebugAssert.Success(Contains(key),
                 "Cannot get item count with key {0}. Key not found", key);
 
             return slots[key].Count;
@@ -71,7 +72,7 @@ namespace Engine.Ecs
 
         public MSAItemList<TDataType> GetItemList(int key)
         {
-            Debug.Assert(Contains(key),
+            DebugAssert.Success(Contains(key),
                 "Cannot get item list with key {0}. Key not found", key);
 
             Slot slot = slots[key];
@@ -95,7 +96,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TDataType Get(int key)
         {
-            Debug.Assert(Contains(key),
+            DebugAssert.Success(Contains(key),
                 "Cannot get item with key {0}. Key not found", key);
 
             return data[slots[key].Index];
@@ -104,9 +105,9 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TDataType Get(int key, int index)
         {
-            Debug.Assert(Contains(key),
+            DebugAssert.Success(Contains(key),
                 "Cannot get item with key {0}. Key not found", key);
-            Debug.Assert(index > -1 && index < slots[key].Count,
+            DebugAssert.Success(index > -1 && index < slots[key].Count,
                 "Cannot get item with key {0} at index {1}. " +
                 "Index out of bounds", key, index);
 
@@ -189,7 +190,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Remove(int key)
         {
-            Debug.Assert(Contains(key),
+            DebugAssert.Success(Contains(key),
                 "Cannot remove item with key {0}. Key not found", key);
 
             Slot slot = slots[key];
@@ -199,7 +200,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Remove(int key, int index)
         {
-            Debug.Assert(Contains(key),
+            DebugAssert.Success(Contains(key),
                 "Cannot remove item with key {0}. Key not found", key);
 
             Slot slot = slots[key];
@@ -209,7 +210,7 @@ namespace Engine.Ecs
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Remove(int key, int index, int count)
         {
-            Debug.Assert(Contains(key),
+            DebugAssert.Success(Contains(key),
                 "Cannot remove item with key {0}. Key not found", key);
 
             Slot slot = slots[key];
@@ -218,9 +219,9 @@ namespace Engine.Ecs
 
         private int RemoveRange(Slot slot, int key, int index, int count)
         {
-            Debug.Assert(count > -1, "Invalid count value of {0}", count);
-            Debug.Assert(index > -1, "Invalid index value of {0}", index);
-            Debug.Assert(index + count <= slot.Count,
+            DebugAssert.Success(count > -1, "Invalid count value of {0}", count);
+            DebugAssert.Success(index > -1, "Invalid index value of {0}", index);
+            DebugAssert.Success(index + count <= slot.Count,
                 "Cannot remove {0} items at key {1} starting at index {2}. " +
                 "Key only has {3} items",
                 count, key, index, slot.Count);
@@ -357,7 +358,7 @@ namespace Engine.Ecs
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                Debug.Assert(index < count, "Index {0} out of range", index);
+                DebugAssert.Success(index < count, "Index {0} out of range", index);
                 return data[startIndex + index];
             }
         }
