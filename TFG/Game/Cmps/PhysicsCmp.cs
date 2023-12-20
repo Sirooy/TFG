@@ -9,17 +9,16 @@ namespace Cmps
         public Vector2 LinearVelocity;
         public float Torque;
         public float AngularVelocity;
+        public float LinearDamping;
+        public float AngularDamping;
         public float GravityMultiplier;
-        
+
         private Vector2 maxLinearVelocity;
         private float maxAngularVelocity;
         private float mass;
         private float inverseMass;
         public float inertia;
         public float inverseInertia;
-
-        //Añadir la restitucion al componente de colision
-        public float Restitution;
 
         public Vector2 MaxLinearVelocity
         {
@@ -39,7 +38,6 @@ namespace Cmps
                 maxAngularVelocity = MathF.Abs(value);
             }
         }
-
 
         public float Mass
         {
@@ -81,8 +79,11 @@ namespace Cmps
         {
             Force              = Vector2.Zero;
             LinearVelocity     = Vector2.Zero;
+            Torque             = 0.0f;
+            AngularVelocity    = 0.0f;
+            LinearDamping      = 0.0f;
+            AngularDamping     = 0.0f;
             GravityMultiplier  = 1.0f;
-            Restitution        = 0.5f;
             mass               = 1.0f;
             inverseMass        = 1.0f;
             inertia            = 1.0f;

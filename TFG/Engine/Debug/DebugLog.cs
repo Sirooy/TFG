@@ -6,7 +6,7 @@ namespace Engine.Debug
     public static class DebugLog
     {
         [Conditional("DEBUG")]
-        public static void LogInfo(string message, params object[] args)
+        public static void Info(string message, params object[] args)
         {
             WriteLogHeader("INFO", ConsoleColor.Blue,
                 ConsoleColor.White);
@@ -17,7 +17,7 @@ namespace Engine.Debug
         }
 
         [Conditional("DEBUG")]
-        public static void LogWarning(string message, params object[] args)
+        public static void Warning(string message, params object[] args)
         {
             WriteLogHeader("WARNING", ConsoleColor.DarkYellow,
                 ConsoleColor.White);
@@ -28,7 +28,7 @@ namespace Engine.Debug
         }
 
         [Conditional("DEBUG")]
-        public static void LogSuccess(string message, params object[] args)
+        public static void Success(string message, params object[] args)
         {
             WriteLogHeader("SUCCESS", ConsoleColor.Green,
                 ConsoleColor.White);
@@ -39,9 +39,9 @@ namespace Engine.Debug
         }
 
         [Conditional("DEBUG")]
-        public static void LogFail(string message, params object[] args)
+        public static void Error(string message, params object[] args)
         {
-            WriteLogHeader("FAIL", ConsoleColor.Red,
+            WriteLogHeader("ERROR", ConsoleColor.Red,
                 ConsoleColor.White);
 
             Console.ForegroundColor = ConsoleColor.Red;
@@ -50,27 +50,27 @@ namespace Engine.Debug
         }
 
         [Conditional("DEBUG")]
-        public static void LogInfoIf(bool condition, string message, params object[] args)
+        public static void InfoIf(bool condition, string message, params object[] args)
         {
-            if (condition) LogInfo(message, args);
+            if (condition) Info(message, args);
         }
 
         [Conditional("DEBUG")]
-        public static void LogWarningIf(bool condition, string message, params object[] args)
+        public static void WarningIf(bool condition, string message, params object[] args)
         {
-            if (condition) LogWarning(message, args);
+            if (condition) Warning(message, args);
         }
 
         [Conditional("DEBUG")]
-        public static void LogSuccessIf(bool condition, string message, params object[] args)
+        public static void SuccessIf(bool condition, string message, params object[] args)
         {
-            if (condition) LogSuccess(message, args);
+            if (condition) Success(message, args);
         }
 
         [Conditional("DEBUG")]
-        public static void LogFailIf(bool condition, string message, params object[] args)
+        public static void ErrorIf(bool condition, string message, params object[] args)
         {
-            if (condition) LogFail(message, args);
+            if (condition) Error(message, args);
         }
 
         internal static void WriteLogHeader(string messageType, ConsoleColor back,

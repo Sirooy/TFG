@@ -92,7 +92,7 @@ namespace Systems
         private void DrawEntitiesColliders()
         {
             shapeBatch.Begin(camera);
-            entityManager.ForEachComponent((Entity e, CollisionCmp collision) =>
+            entityManager.ForEachComponent((Entity e, ColliderCmp collision) =>
             {
                 ColliderShape shape = collision.Collider;
 
@@ -120,6 +120,37 @@ namespace Systems
                     shapeBatch.DrawRectangle(collision.Transform.GetWorldPosition(e),
                         size, 2.0f, collision.Transform.GetWorldRotation(e), 
                         size * 0.5f, Color.Yellow);
+                }
+            });
+
+            entityManager.ForEachComponent((Entity e, TriggerColliderCmp collision) =>
+            {
+                ColliderShape shape = collision.Collider;
+
+                if (shape.Type == ColliderShapeType.Circle)
+                {
+                    CircleCollider circle = (CircleCollider)shape;
+
+                    float rotation = collision.Transform.GetWorldRotation(e);
+                    float cos = MathF.Cos(rotation);
+                    float sin = MathF.Sin(rotation);
+                    float radius = collision.Transform.GetWorldScale(e) *
+                        circle.Radius;
+                    Vector2 center = collision.Transform.GetWorldPosition(e);
+                    Vector2 lineDir = new Vector2(cos * radius, sin * radius);
+
+                    shapeBatch.DrawCircle(center, radius, 24, 2.0f, Color.Cyan);
+                    shapeBatch.DrawLine(center, center + lineDir, 2.0f, Color.Cyan);
+                }
+                else if (shape.Type == ColliderShapeType.Rectangle)
+                {
+                    RectangleCollider rectangle = (RectangleCollider)shape;
+                    Vector2 size = new Vector2(rectangle.Width, rectangle.Height) *
+                        collision.Transform.GetWorldScale(e);
+
+                    shapeBatch.DrawRectangle(collision.Transform.GetWorldPosition(e),
+                        size, 2.0f, collision.Transform.GetWorldRotation(e),
+                        size * 0.5f, Color.Cyan);
                 }
             });
             shapeBatch.End();

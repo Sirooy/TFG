@@ -74,6 +74,9 @@ namespace TFG
         private SystemManager drawSystems;
         private Entity player;
         private SpriteFont font;
+        private Entity mouseEntity;
+        private Vector2 point;
+        private Color rayColor;
 
         Transform child;
         Transform parent;
@@ -101,7 +104,7 @@ namespace TFG
             Window.ClientSizeChanged += (object sender, EventArgs args) =>
             {
                 screen.UpdateDestinationRect();
-                DebugLog.LogWarning("Resize {0}:{1}", Window.ClientBounds.Width, 
+                DebugLog.Warning("Resize {0}:{1}", Window.ClientBounds.Width, 
                     Window.ClientBounds.Height);
             };
 
@@ -109,7 +112,7 @@ namespace TFG
 
         protected override void Initialize()
         {
-            DebugLog.LogInfo("Initializing");
+            DebugLog.Info("Initializing");
 
             gameStates = new GameStateStack();
             screen = new RenderScreen(GraphicsDevice, 800, 600);
@@ -122,7 +125,8 @@ namespace TFG
 
             entityManager.RegisterComponent<SpriteCmp>();
             entityManager.RegisterComponent<PhysicsCmp>();
-            entityManager.RegisterComponent<CollisionCmp>();
+            entityManager.RegisterComponent<ColliderCmp>();
+            entityManager.RegisterComponent<TriggerColliderCmp>();
 
             DebugTimer.Register("Update", 120);
             DebugTimer.Register("Draw",   50);
@@ -155,7 +159,7 @@ namespace TFG
 
         protected override void LoadContent()
         {
-            DebugLog.LogInfo("Loading content");
+            DebugLog.Info("Loading content");
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
             shapeBatch = new ShapeBatch(GraphicsDevice);
@@ -163,7 +167,15 @@ namespace TFG
             font = Content.Load<SpriteFont>("DebugFont");
             // TODO: use this.Content to load your game content here
 
-            float playerWidth = 64.0f;
+            drawSystems.RegisterSystem(new RenderSystem(entityManager, spriteBatch, shapeBatch, camera));
+            drawSystems.EnableSystem<RenderSystem>();
+
+            updateSystems.RegisterSystem(new PhysicsSystem(entityManager,
+                new Vector2(0.0f, 250.0f), 1.0f / 60.0f));
+            updateSystems.EnableSystem<PhysicsSystem>();
+            updateSystems.GetSystem<PhysicsSystem>().Iterations = 5;
+
+            float playerWidth = 256.0f;
             float playerHeight = 32.0f;
             player = entityManager.CreateEntity();
             player.Position = new Vector2(0, -256.0f);
@@ -177,21 +189,70 @@ namespace TFG
             spriteCmp2.Origin = new Vector2(8.0f, 8.0f);
             PhysicsCmp physicsCmp = entityManager.AddComponent(player, new PhysicsCmp());
             physicsCmp.MaxLinearVelocity = new Vector2(300.0f, 300.0f);
-            physicsCmp.GravityMultiplier = 0.0f;
-            //CollisionCmp collisionCmp1 = entityManager.AddComponent(player,
-            //    new CollisionCmp(new CircleCollider(32.0f)));
-            //collisionCmp1.Transform.LocalPosition = new Vector2(50.0f, 0.0f);
-            physicsCmp.Restitution = 1.0f;
+            physicsCmp.GravityMultiplier = 1.0f;
             physicsCmp.Mass = 0.0f;
-            
-            physicsCmp.Inertia = (1.0f / 12.0f) * 1.0f * 
-                (playerWidth * playerWidth + playerHeight * playerHeight);
 
-            CollisionCmp collisionCmp2 = entityManager.AddComponent(player,
-                new CollisionCmp(new RectangleCollider(64.0f, 32.0f)));
-            collisionCmp2.Transform.LocalPosition = new Vector2(0.0f, 0.0f);
-            
 
+            //physicsCmp.Inertia = (1.0f / 12.0f) * 1.0f * 
+            //    (playerWidth * playerWidth + playerHeight * playerHeight);
+            physicsCmp.Inertia = 0.0f;
+            physicsCmp.AngularVelocity = 0.5f;
+
+            ColliderCmp collisionCmp2 = entityManager.AddComponent(player,
+                new ColliderCmp(new RectangleCollider(playerWidth, playerHeight)));
+            collisionCmp2.AddCollisionLayer((CollisionBitmask)0x01);
+            collisionCmp2.AddCollisionMask((CollisionBitmask)0x01);
+            //physicsCmp.Inertia = 0.0f;
+
+            //CollisionCmp collisionCmp2 = entityManager.AddComponent(player,
+            //    new CollisionCmp(new CircleCollider(8.0f), Material.Friction));
+            //physicsCmp.Inertia = (1.0f / 4.0f) * 1.0f * 8.0f * 8.0f;
+            //collisionCmp2.Transform.LocalPosition = new Vector2(64.0f, 0.0f);
+            //CollisionCmp collisionCmp3 = entityManager.AddComponent(player,
+            //    new CollisionCmp(new RectangleCollider(playerWidth, playerHeight)));
+            //collisionCmp3.Transform.LocalPosition = new Vector2(-64.0f, 0.0f);
+
+            Entity triggerEntity = entityManager.CreateEntity();
+            triggerEntity.Position = new Vector2(-500.0f, 0.0f);
+            triggerEntity.Rotation = MathF.PI * 45.0f / 180.0f;
+            TriggerColliderCmp triggerCol = entityManager.AddComponent(triggerEntity,
+                new TriggerColliderCmp(new RectangleCollider(128.0f, 256.0f)));
+            triggerCol.AddCollisionLayer((CollisionBitmask)0x01);
+            triggerCol.AddCollisionMask((CollisionBitmask)0x01);
+            triggerCol.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                Entity e2, ColliderBody c2, ColliderType type, in Manifold manifold) =>
+            {
+                string entity2 = "Static";
+                if (e2 != null)
+                    entity2 = e2.Id.ToString();
+                Console.WriteLine(manifold.Normal);
+                DebugLog.Success("Trigger ENTER: {0}, type: {1}, Num collisions: {2}", 
+                    entity2, type, c1.CurrentCollisions.Count);
+            };
+
+            triggerCol.OnTriggerStay += (Entity e1, TriggerColliderCmp c1,
+                Entity e2, ColliderBody c2, ColliderType type, in Manifold manifold) =>
+            {
+                string entity2 = "Static";
+                if (e2 != null)
+                    entity2 = e2.Id.ToString();
+                Console.WriteLine(manifold.Normal * manifold.Depth);
+                e2.Position -= manifold.Normal * manifold.Depth;
+                //DebugLog.Warning("Trigger STAY: {0}, type: {1}, Num collisions: {2}",
+                //    entity2, type, c1.CurrentCollisions.Count);
+            };
+
+            triggerCol.OnTriggerExit += (Entity e1, TriggerColliderCmp c1,
+                Entity e2, ColliderBody c2, ColliderType type) =>
+            {
+                string entity2 = "Static";
+                if (e2 != null)
+                    entity2 = e2.Id.ToString();
+                DebugLog.Error("Trigger EXIT: {0}, type: {1}, Num collisions: {2}",
+                    entity2, type, c1.CurrentCollisions.Count);
+            };
+
+            /*
             Entity block   = entityManager.CreateEntity();
             block.Position = new Vector2(0.0f, 16.0f * 20.0f);
             PhysicsCmp blockPhysics = entityManager.AddComponent(block, new PhysicsCmp());
@@ -199,12 +260,20 @@ namespace TFG
             blockPhysics.Mass = 0.0f;
             blockPhysics.Inertia = 0.0f;
             CollisionCmp blockCollision = entityManager.AddComponent(block,
-                new CollisionCmp(new RectangleCollider(1024.0f, 128.0f)));
-            blockPhysics.Restitution = 0.2f;
+                new CollisionCmp(new RectangleCollider(1024.0f, 128.0f),
+                //Material.Friction));
+            blockCollision.Material.Restitution = 0.8f;
+            blockCollision.AddCollisionLayer((CollisionBitmask)0x01);
+            blockCollision.AddCollisionMask((CollisionBitmask)0x01);
+            */
+            StaticCollider block = updateSystems.GetSystem<PhysicsSystem>().
+                AddStaticCollider(new RectangleCollider(1024.0f, 128.0f), 
+                Material.One, (CollisionBitmask)0x01, (CollisionBitmask)0x01);
+            block.Position = new Vector2(0.0f, 16.0f * 20.0f);
 
             Random rnd = new Random();
-            const int COLUMNS = 0;// 20;
-            const int ROWS    = 0;// 5;
+            const int COLUMNS = 0;
+            const int ROWS    = 0;
             for(int i = 0;i < COLUMNS; ++i)
             {
                 for(int j = 0;j < ROWS; ++j)
@@ -215,39 +284,79 @@ namespace TFG
                     Entity e = entityManager.CreateEntity();
                     e.Position = new Vector2(x, y);
                     PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-                    phy.Restitution = 0.0f;
+                    phy.Inertia = (1.0f / 12.0f) * phy.Mass * 
+                        (16.0f * 16.0f + 16.0f * 16.0f);
                     //phy.Inertia = 2000.0f;
+                    //phy.Inertia = 0.0f;
 
                     SpriteCmp spr = entityManager.AddComponent(e,
                         new SpriteCmp(tileSetTexture, new Rectangle(
                             rnd.Next(3) * 16,
                             rnd.Next(15) * 16, 16, 16)));
                     spr.Origin = new Vector2(8.0f, 8.0f);
-                    entityManager.AddComponent(e,
-                        new CollisionCmp(new RectangleCollider(16.0f, 16.0f)));
+                    ColliderCmp col = entityManager.AddComponent(e,
+                        new ColliderCmp(new RectangleCollider(16.0f, 16.0f),
+                        Material.One)); //new CircleCollider(8.0f)
+                    //col.Material.Restitution = 0.8f;
+                    col.AddCollisionLayer((CollisionBitmask)0x01);
+                    col.AddCollisionMask((CollisionBitmask)0x01);
                 }
             }
-           
+        }
 
-            drawSystems.RegisterSystem(new RenderSystem(entityManager, spriteBatch, shapeBatch, camera));
-            drawSystems.EnableSystem<RenderSystem>();
+        private void CreateMouseEntity()
+        {
+            if(mouseEntity == null)
+            {
+                mouseEntity = entityManager.CreateEntity();
+                mouseEntity.Rotation = MathF.PI * 45.0f / 180.0f;
+                TriggerColliderCmp mouseCol = entityManager.AddComponent(mouseEntity,
+                    new TriggerColliderCmp(new CircleCollider(16.0f)));
+                mouseCol.AddCollisionLayer((CollisionBitmask)0x01);
+                mouseCol.AddCollisionMask((CollisionBitmask)0x01);
+                /*
+                mouseCol.OnTriggerStay += (Entity e1, TriggerCollisionCmp c1,
+                    Entity e2, ColliderBody c2, CollisionType type, in Manifold manifold) =>
+                {
+                    string entity2 = "Static";
+                    if (e2 != null)
+                        entity2 = e2.Id.ToString();
+                    Console.WriteLine(manifold.Normal);
+                    Console.WriteLine("Mouse enter: {0}, type: {1}", entity2, type);
+                };
+                */
+            }
+        }
 
-            updateSystems.RegisterSystem(new PhysicsSystem(entityManager, 
-                new Vector2(0.0f, 250.0f), 1.0f / 60.0f));
-            updateSystems.EnableSystem<PhysicsSystem>();
-            updateSystems.GetSystem<PhysicsSystem>().Iterations = 1;
+        private void DestroyMouseEntity()
+        {
+            if(mouseEntity != null)
+            {
+                entityManager.RemoveEntity(mouseEntity);
+                mouseEntity = null;
+            }
         }
 
         private void CreateCircleEntity()
         {
+            const float radius = 8.0f;
             Entity e = entityManager.CreateEntity();
             e.Position = MouseInput.GetPosition(camera);
 
             PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Restitution = 0.5f;
+            phy.Inertia = (1.0f / 4.0f) * phy.Mass * radius * radius;
+            phy.LinearDamping = 0.0f;
 
-            entityManager.AddComponent(e,
-                new CollisionCmp(new CircleCollider(8.0f)));
+            ColliderCmp col = entityManager.AddComponent(e,
+                new ColliderCmp(new CircleCollider(radius), Material.Wood));
+            col.Material.Restitution = 0.8f;
+            col.AddCollisionLayer((CollisionBitmask)0x01);
+            col.AddCollisionMask((CollisionBitmask)0x01);
+            //col.OnCollision += (Entity e1, CollisionCmp c1, Entity e2, CollisionCmp c2,
+            //    in Manifold manifold) =>
+            //{
+            //    Console.WriteLine(e1.Id + " " + e2.Id);
+            //};
         }
 
         private void CreateRectangleEntity()
@@ -259,13 +368,18 @@ namespace TFG
             float height = (float)rnd.NextDouble() * (MAX_SIZE - MIN_SIZE) + MIN_SIZE;
             Entity e = entityManager.CreateEntity();
             e.Position = MouseInput.GetPosition(camera);
+            e.Rotation = MathF.PI * 45.0f / 180.0f;
 
             PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Restitution = 0.5f;
             phy.Inertia = (1.0f / 12.0f) * phy.Mass * (width * width + height * height);
+            phy.LinearDamping = 0.99f;
+            phy.AngularDamping = 0.99f;
 
-            entityManager.AddComponent(e,
-                new CollisionCmp(new RectangleCollider(width, height)));
+            ColliderCmp col = entityManager.AddComponent(e,
+                new ColliderCmp(new RectangleCollider(width, height),
+                Material.One));
+            col.AddCollisionLayer((CollisionBitmask)0x01);
+            col.AddCollisionMask((CollisionBitmask)0x01);
         }
 
         protected override void Update(GameTime gameTime)
@@ -311,7 +425,6 @@ namespace TFG
             {
                 camera.Zoom -= 0.1f;
                 Console.WriteLine(camera.Zoom);
-
             }
 
             if(KeyboardInput.IsKeyDown(Keys.Z))
@@ -334,14 +447,12 @@ namespace TFG
 
             if(MouseInput.IsLeftButtonPressed())
             {
-                CreateCircleEntity();
-                Console.WriteLine(entityManager.GetEntities().Count);
+                CreateMouseEntity();
             }
 
             if (MouseInput.IsRightButtonPressed())
             {
-                CreateRectangleEntity();
-                Console.WriteLine(entityManager.GetEntities().Count);
+                DestroyMouseEntity();
             }
 
             PhysicsCmp physicsCmp = entityManager.GetComponent<PhysicsCmp>(player);
@@ -368,12 +479,12 @@ namespace TFG
 
             if(KeyboardInput.IsKeyDown(Keys.B))
             {
-                physicsCmp.Torque += 10000.0f;
+                physicsCmp.Torque += 1000.0f;
                 //player.Rotation += MathF.PI / 2.0f * dt;
             }
             if (KeyboardInput.IsKeyDown(Keys.M))
             {
-                physicsCmp.Torque -= 10000.0f;
+                physicsCmp.Torque -= 1000.0f;
                 //player.Rotation -= MathF.PI / 2.0f * dt;
             }
 
@@ -424,9 +535,41 @@ namespace TFG
 
             if(KeyboardInput.IsKeyPressed(Keys.D3))
             {
-                Console.WriteLine(camera.Position.X + " " + camera.Position.Y);
-                Console.WriteLine(bounds.X + " " + bounds.Y + " " +
-                    bounds.Width + " " + bounds.Height);
+                CreateCircleEntity();
+                Console.WriteLine(entityManager.GetEntities().Count);
+            }
+
+            if (KeyboardInput.IsKeyPressed(Keys.D4))
+            {
+                CreateRectangleEntity();
+                Console.WriteLine(entityManager.GetEntities().Count);
+            }
+
+            if (mouseEntity != null)
+            {
+                mouseEntity.Position = MouseInput.GetPosition(camera);
+            }
+
+            Vector2 rayStart = new Vector2(-200.0f, 0.0f);
+            Vector2 rayDir   = Vector2.Normalize(MouseInput.GetPosition(camera) - rayStart);
+            RaycastResult raycast = updateSystems.GetSystem<PhysicsSystem>()
+                .Raycast(rayStart, rayDir, ColliderType.All, CollisionBitmask.All);
+
+            if(raycast.HasCollided)
+            {
+                point = rayStart + rayDir * raycast.Distance;
+
+                switch(raycast.ColliderType)
+                {
+                    case ColliderType.Static:  rayColor = Color.Red; break;
+                    case ColliderType.Dynamic: rayColor = Color.Cyan; break;
+                    case ColliderType.Trigger: rayColor = Color.Yellow; break;
+
+                }
+            }
+            else
+            {
+                point = Vector2.Zero;
             }
 
             updateSystems.UpdateSystems();
@@ -466,7 +609,7 @@ namespace TFG
         {
             DebugTimer.Start("Draw");
             screen.Attach();
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.Black);
 
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
             foreach (Tile t in tiles)
@@ -475,8 +618,6 @@ namespace TFG
                     t.Source, Color.White);
             }
             spriteBatch.End();
-
-
 
             shapeBatch.Begin(camera);
             //shapeBatcher.DrawFilledRectangle(new Rectangle(32, 32, 16, 16),
@@ -497,15 +638,50 @@ namespace TFG
             shapeBatch.DrawLine(new Vector2(0.0f, 0.0f),
                 new Vector2(50.0f, 0.0f), 4.0f, Color.Red);
             shapeBatch.DrawLine(new Vector2(0.0f, screen.Height * 0.5f),
-               new Vector2(50.0f, screen.Height * 0.5f), 4.0f, new Color(0, 255, 255));
+               new Vector2(50.0f, screen.Height * 0.5f), 4.0f, new Color(255, 255, 255));
+            //if(mouseEntity != null)
+            //shapeBatch.DrawRectangle(MouseInput.GetPosition(camera), new Vector2(16.0f, 16.0f),
+            //    2.0f, mouseEntity.Rotation, new Vector2(8.0f), Color.Gray);
+            shapeBatch.DrawCircle(MouseInput.GetPosition(camera), 16.0f, 16, 2.0f, Color.Gray);
 
-            //shapeBatcher.DrawFilledRectangle(new Rectangle(100, 100, 200, 300), Color.Blue);
-            //shapeBatcher.DrawLine(new Vector2(100, 100), new Vector2(300, 400), Color.Red);
             shapeBatch.End();
+
+            /* RayVsCircle Test
+            shapeBatch.Begin();
+            Vector2 circleCenter = new Vector2(400.0f, 300.0f);
+            float circleRadius = 32.0f;
+            Vector2 rayStart = new Vector2(100.0f, 300.0f);
+            Vector2 rayDir = Vector2.Normalize(MouseInput.GetPosition(screen) - rayStart);
+            shapeBatch.DrawCircle(circleCenter, circleRadius, 16, 2, Color.Red);
+            shapeBatch.DrawLine(rayStart, MouseInput.GetPosition(screen), new Color(0, 255, 0));
+
+            if (CollisionTester.RayVsCircle(rayStart, rayDir, circleCenter, circleRadius,
+                out float dist))
+            {
+                Console.WriteLine("ASD");
+                shapeBatch.DrawFilledRectangle(rayStart + rayDir * dist -
+                    new Vector2(2.0f, 2.0f), new Vector2(4.0f, 4.0f), Color.Yellow);
+            }
+            shapeBatch.End();
+            */
+
             drawSystems.UpdateSystems();
+
+            shapeBatch.Begin(camera);
+            Vector2 rayStart = new Vector2(-200.0f, 0.0f);
+            Vector2 rayDir = Vector2.Normalize(MouseInput.GetPosition(camera) - rayStart);
+
+            shapeBatch.DrawLine(rayStart, MouseInput.GetPosition(camera), 
+                new Color(0, 255, 0));
+            if(point != Vector2.Zero)
+            {
+                shapeBatch.DrawFilledRectangle(point - new Vector2(2.0f),
+                    new Vector2(4.0f), rayColor);
+            }
 
             DebugTimer.Stop("Draw");
             DebugTimer.Draw(spriteBatch, font);
+            shapeBatch.End();
 
             shapeBatch.Begin(camera);
             foreach(Vector2 v in PhysicsSystem.contactPoints)
@@ -513,10 +689,7 @@ namespace TFG
                 shapeBatch.DrawFilledRectangle(v - new Vector2(2.0f, 2.0f),
                     new Vector2(4.0f, 4.0f), Color.Red);
             }
-
             shapeBatch.End();
-
-            
 
             //gameStates.DrawActiveStates(gameTime, spriteBatch);
 
@@ -529,14 +702,14 @@ namespace TFG
 
         protected override void OnActivated(object sender, EventArgs args)
         {
-            DebugLog.LogInfo("Game is focused");
+            DebugLog.Info("Game is focused");
 
             base.OnActivated(sender, args);
         }
 
         protected override void OnDeactivated(object sender, EventArgs args)
         {
-            DebugLog.LogInfo("Game lost focus");
+            DebugLog.Info("Game lost focus");
             
             base.OnDeactivated(sender, args);
         }

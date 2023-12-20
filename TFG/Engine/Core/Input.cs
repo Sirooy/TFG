@@ -81,11 +81,6 @@ namespace Engine.Core
             return mouseState.Position.ToVector2();
         }
 
-        public static Vector2 GetLastPosition()
-        {
-            return lastMouseState.Position.ToVector2();
-        }
-
         public static Vector2 GetPosition(RenderScreen screen)
         {
             return screen.WindowToScreenCoords(
@@ -96,6 +91,23 @@ namespace Engine.Core
         {
             return camera.WindowToCameraCoords(
                 mouseState.Position.ToVector2());
+        }
+
+        public static Vector2 GetLastPosition()
+        {
+            return lastMouseState.Position.ToVector2();
+        }
+
+        public static Vector2 GetLastPosition(RenderScreen screen)
+        {
+            return screen.WindowToScreenCoords(
+                lastMouseState.Position.ToVector2());
+        }
+
+        public static Vector2 GetLastPosition(Camera2D camera)
+        {
+            return camera.WindowToCameraCoords(
+                lastMouseState.Position.ToVector2());
         }
 
         public static bool ScrollHasChanged()

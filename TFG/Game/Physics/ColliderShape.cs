@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -92,7 +93,10 @@ namespace Physics
             this.Normals  = new Vector2[2];
         }
 
-        public Vector2[] GetVertices(Entity entity, CollisionCmp cmp)
+        public RectangleCollider(float size) : this(size, size)
+            { }
+
+        public Vector2[] GetVertices(Entity entity, ColliderCmp cmp)
         {
             Vector2 center = cmp.Transform.GetWorldPosition(entity);
             float rotation = cmp.Transform.GetWorldRotation(entity);

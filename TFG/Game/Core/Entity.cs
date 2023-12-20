@@ -26,5 +26,15 @@ namespace Core
             Rotation = 0.0f;
             Scale    = 1.0f;
         }
+
+        public void AddTag(EntityTags tags)
+        {
+            Tags |= tags;
+        }
+
+        public void RemoveTag(EntityTags tags)
+        {
+            Tags &= (~tags);
+        }
     }
 }
