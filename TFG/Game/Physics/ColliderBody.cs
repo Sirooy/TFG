@@ -14,6 +14,17 @@ namespace Physics
         All     = Static | Dynamic | Trigger
     }
 
+    [Flags]
+    public enum CollisionBitmask : uint
+    {
+        None   = 0x00,
+        Player = 1 << 0,
+        Enemy  = 1 << 1,
+        Wall   = 1 << 2,
+        Attack = 1 << 3,
+        All    = 0xFFFFFFFF
+    }
+
     public class ColliderBody
     {
         public ColliderShape Collider;

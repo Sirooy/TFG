@@ -11,51 +11,133 @@ using Core;
 using Systems;
 using Physics;
 using Engine.Debug;
+using System.Runtime.ExceptionServices;
 
 namespace TFG
 {
-    class Transform
-    {
-        public Vector2 LocalPosition;
-        public Vector2 LocalScale;
-        public float LocalRotation;
-
-        private Vector2 worldPosition;
-        private Vector2 worldScale;
-        private float worldRotation;
-        
-        public Vector2 WorldPosition { get { return worldPosition; } }
-        public Vector2 WorldScale { get { return worldScale; } }
-        public float WorldRotation { get { return worldRotation; } }
-
-        public Transform()
-        {
-            LocalPosition = worldPosition = new Vector2(0.0f, 0.0f);
-            LocalScale = worldScale = new Vector2(1.0f, 1.0f);
-            LocalRotation = worldRotation = 0.0f;
-        }
-
-        public void TransformBy(Transform other)
-        {
-            float cos = MathF.Cos(other.LocalRotation);
-            float sin = MathF.Sin(other.LocalRotation);
-
-            worldScale = LocalScale * other.LocalScale;
-            worldRotation = LocalRotation + other.LocalRotation;
-
-            float scaledX = other.LocalScale.X * LocalPosition.X;
-            float scaledY = other.LocalScale.Y * LocalPosition.Y;
-
-            worldPosition = new Vector2(
-                (scaledX * cos - scaledY * sin) + other.LocalPosition.X,
-                (scaledX * sin + scaledY * cos) + other.LocalPosition.Y); 
-        }
-    }
-
     struct Tile
     {
         public Vector2 Position;
         public Rectangle Source;
+
+        public Tile(Vector2 position, Rectangle source)
+        {
+            Position = position;
+            Source   = source;
+        }
+    }
+
+    public class DiceAction
+    {
+        public Rectangle SourceRect { get; set; }
+        public Color Color { get; set; }
+        public Action<Game1> Action { get; set; }
+        public Action<Game1, ShapeBatch> DrawCommand { get; set; }
+
+        public DiceAction(Rectangle sourceRect, Color color, Action<Game1> action,
+            Action<Game1, ShapeBatch> drawCommand)
+        {
+            this.SourceRect = sourceRect;
+            this.Color = color;
+            this.Action = action;
+            this.DrawCommand = drawCommand;
+        }
+    }
+
+    public class DiceQueue
+    {
+        private List<int> dice;
+        private List<DiceAction> actions;
+        private float currentCooldown;
+        public Vector2 StartPosition;
+        public Keys ActionKey { get; set; }
+        public bool IsEnabled { get; set; }
+        public bool CanBeActivated { get; set; }
+        public float TotalWidth { get; private set; }
+        public float Cooldown { get; set; }
+
+        public DiceQueue(List<DiceAction> actions, Keys actionKey, Vector2 startPosition, int numDice, float cooldown)
+        {
+            this.actions = actions;
+            this.ActionKey = actionKey;
+            this.StartPosition = startPosition;
+            this.dice = new List<int>();
+            this.IsEnabled = false;
+            this.CanBeActivated = false;
+            this.currentCooldown = 0.0f;
+            this.Cooldown = cooldown;
+
+            Random rnd = new Random();
+            for (int i = 0; i < numDice; ++i)
+                dice.Add(rnd.Next(actions.Count));
+
+            DiceAction firstAction = actions[0];
+            TotalWidth = firstAction.SourceRect.Width * numDice + 5.0f * numDice;
+        }
+
+        public void Update(Game1 game, float dt)
+        {
+            if (currentCooldown < Cooldown)
+            {
+                currentCooldown = Math.Min(currentCooldown + dt, Cooldown);
+            }
+            else
+            {
+                CanBeActivated = true;
+            }
+        }
+
+        public void ExecuteAction(Game1 game)
+        {
+            if (currentCooldown < Cooldown)
+                return;
+
+            int index = dice[0];
+
+            actions[index].Action(game);
+
+            Random rnd = new Random();
+            dice.RemoveAt(0);
+            dice.Add(rnd.Next(actions.Count));
+
+            currentCooldown = 0.0f;
+            CanBeActivated = false;
+        }
+
+        public void Draw(Game1 game, SpriteBatch spriteBatch,
+            Texture2D blankTexture, Texture2D diceTexture)
+        {
+            byte alpha = (IsEnabled) ? (byte)255 : (byte)127;
+
+            float rectWidth = (currentCooldown / Cooldown) * TotalWidth;
+            spriteBatch.Draw(blankTexture, StartPosition,null, 
+                new Color(Color.Gold.R, Color.Gold.G, Color.Gold.B, alpha), 0.0f, 
+                Vector2.Zero, new Vector2(rectWidth, 32.0f),
+                SpriteEffects.None, 0.0f);
+
+            for (int i = 0; i < dice.Count; ++i)
+            {
+                DiceAction action = actions[dice[i]];
+                spriteBatch.Draw(diceTexture, StartPosition + new Vector2(i * 32.0f + i * 5.0f, 0.0f),
+                    action.SourceRect,
+                    new Color(action.Color.R, action.Color.G, action.Color.B, alpha));
+            }
+        }
+
+        public void DrawAction(Game1 game, ShapeBatch shapeBatch)
+        {
+            if (IsEnabled)
+            {
+                int index = dice[0];
+                actions[index].DrawCommand(game, shapeBatch);
+            }
+        }
+
+    }
+
+    public class HealthCmp
+    {
+
     }
 
     public class Game1 : Game
@@ -74,18 +156,15 @@ namespace TFG
         private SystemManager drawSystems;
         private Entity player;
         private SpriteFont font;
-        private Entity mouseEntity;
-        private Vector2 point;
-        private Color rayColor;
-
-        Transform child;
-        Transform parent;
-
-        const float ParentSize = 64.0f;
-        const float ChildSize = 32.0f;
 
         public const int WindowWidth  = 1024;
         public const int WindowHeight = 720;
+
+        public List<DiceAction> actions = new List<DiceAction>();
+        public List<DiceQueue> queues = new List<DiceQueue>();
+        public DiceQueue currentQueue = null;
+        private Texture2D mainTexture;
+        private Texture2D blankTexture;
 
         public Game1()
         {
@@ -117,12 +196,11 @@ namespace TFG
             gameStates = new GameStateStack();
             screen = new RenderScreen(GraphicsDevice, 800, 600);
             camera = new Camera2D(screen);
-            parent = new Transform();
-            child  = new Transform();
             entityManager = new EntityManager<Entity>();
             drawSystems = new SystemManager();
             updateSystems = new SystemManager();
 
+            entityManager.RegisterComponent<ScriptCmp>();
             entityManager.RegisterComponent<SpriteCmp>();
             entityManager.RegisterComponent<PhysicsCmp>();
             entityManager.RegisterComponent<ColliderCmp>();
@@ -132,8 +210,6 @@ namespace TFG
             DebugTimer.Register("Draw",   50);
             DebugTimer.Register("Physics", 120);
 
-            //camera.ViewportPosition = new Vector2(0.0f, 0.0f);
-            //camera.ViewportSize = new Vector2(1.0f, 1.0f);
             camera.RotationAnchor = new Vector2(0.5f, 0.5f);
             camera.PositionAnchor = new Vector2(0.5f, 0.5f);
             PrintSizes();
@@ -157,6 +233,38 @@ namespace TFG
             base.Initialize();
         }
 
+        protected DiceAction CreateDiceMoveAction(float distance, Rectangle source)
+        {
+            return new DiceAction(source, Color.White,
+                (Game1 game) =>
+                {
+                    PhysicsCmp physicsCmp = entityManager.GetComponent<PhysicsCmp>(player);
+
+                    Vector2 dir = MouseInput.GetPosition(camera) - player.Position;
+                    dir.Normalize();
+                    float d = physicsCmp.LinearDamping;
+                    physicsCmp.LinearVelocity = dir * (distance * d);
+                },
+                (Game1 game, ShapeBatch shapeBatch) =>
+                {
+                    Vector2 dir = MouseInput.GetPosition(camera) - player.Position;
+                    dir.Normalize();
+                    RaycastResult raycast = updateSystems.GetSystem<PhysicsSystem>()
+                        .Raycast(player.Position, dir, ColliderType.Static);
+
+                    if (raycast.HasCollided && raycast.Distance < distance)
+                    {
+                        shapeBatch.DrawLine(player.Position, player.Position + dir * raycast.Distance,
+                            2.0f, Color.Yellow);
+                    }
+                    else
+                    {
+                        dir *= distance;
+                        shapeBatch.DrawLine(player.Position, player.Position + dir, 2.0f, Color.Yellow);
+                    }
+                });
+        }
+
         protected override void LoadContent()
         {
             DebugLog.Info("Loading content");
@@ -164,6 +272,9 @@ namespace TFG
             spriteBatch = new SpriteBatch(GraphicsDevice);
             shapeBatch = new ShapeBatch(GraphicsDevice);
             tileSetTexture = Content.Load<Texture2D>("TileSet");
+            mainTexture = Content.Load<Texture2D>("MainSprite");
+            blankTexture = new Texture2D(spriteBatch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
+            blankTexture.SetData(new[] { Color.White });
             font = Content.Load<SpriteFont>("DebugFont");
             // TODO: use this.Content to load your game content here
 
@@ -172,214 +283,178 @@ namespace TFG
 
             updateSystems.RegisterSystem(new PhysicsSystem(entityManager,
                 new Vector2(0.0f, 250.0f), 1.0f / 60.0f));
+            updateSystems.RegisterSystem(new ScriptSystem(entityManager));
+            updateSystems.EnableSystem<ScriptSystem>();
             updateSystems.EnableSystem<PhysicsSystem>();
-            updateSystems.GetSystem<PhysicsSystem>().Iterations = 5;
+            PhysicsSystem physiscSystem = updateSystems.GetSystem<PhysicsSystem>();
 
-            float playerWidth = 256.0f;
-            float playerHeight = 32.0f;
+
             player = entityManager.CreateEntity();
-            player.Position = new Vector2(0, -256.0f);
-            SpriteCmp spriteCmp1 = entityManager.AddComponent(player, 
-                new SpriteCmp(tileSetTexture, new Rectangle(16, 16, 16, 16)));
-            spriteCmp1.Transform.LocalPosition = new Vector2(0.0f,  32.0f);
-            spriteCmp1.Origin = new Vector2(8.0f, 8.0f);
-            SpriteCmp spriteCmp2 = entityManager.AddComponent(player,
-                new SpriteCmp(tileSetTexture, new Rectangle(16, 32, 16, 16)));
-            spriteCmp2.Transform.LocalPosition = new Vector2(0.0f, -32.0f);
-            spriteCmp2.Origin = new Vector2(8.0f, 8.0f);
+            player.Position = new Vector2(0, 0.0f);
+            SpriteCmp spriteCmp = entityManager.AddComponent(player, 
+                new SpriteCmp(tileSetTexture, new Rectangle(0, 11 * 16, 16, 16)));
+            spriteCmp.Origin = new Vector2(8.0f, 8.0f);
             PhysicsCmp physicsCmp = entityManager.AddComponent(player, new PhysicsCmp());
-            physicsCmp.MaxLinearVelocity = new Vector2(300.0f, 300.0f);
-            physicsCmp.GravityMultiplier = 1.0f;
-            physicsCmp.Mass = 0.0f;
-
-
-            //physicsCmp.Inertia = (1.0f / 12.0f) * 1.0f * 
-            //    (playerWidth * playerWidth + playerHeight * playerHeight);
+            physicsCmp.GravityMultiplier = 0.0f;
+            physicsCmp.LinearDamping = 2.0f;
+            physicsCmp.Mass = 1.0f;
             physicsCmp.Inertia = 0.0f;
-            physicsCmp.AngularVelocity = 0.5f;
+            ColliderCmp collisionCmp = entityManager.AddComponent(player,
+                new ColliderCmp(new CircleCollider(8.0f)));
+            collisionCmp.AddCollisionLayer(CollisionBitmask.Player);
+            collisionCmp.AddCollisionMask(CollisionBitmask.All);
+            collisionCmp.Material.Restitution = 1.0f;
 
-            ColliderCmp collisionCmp2 = entityManager.AddComponent(player,
-                new ColliderCmp(new RectangleCollider(playerWidth, playerHeight)));
-            collisionCmp2.AddCollisionLayer((CollisionBitmask)0x01);
-            collisionCmp2.AddCollisionMask((CollisionBitmask)0x01);
-            //physicsCmp.Inertia = 0.0f;
-
-            //CollisionCmp collisionCmp2 = entityManager.AddComponent(player,
-            //    new CollisionCmp(new CircleCollider(8.0f), Material.Friction));
-            //physicsCmp.Inertia = (1.0f / 4.0f) * 1.0f * 8.0f * 8.0f;
-            //collisionCmp2.Transform.LocalPosition = new Vector2(64.0f, 0.0f);
-            //CollisionCmp collisionCmp3 = entityManager.AddComponent(player,
-            //    new CollisionCmp(new RectangleCollider(playerWidth, playerHeight)));
-            //collisionCmp3.Transform.LocalPosition = new Vector2(-64.0f, 0.0f);
-
-            Entity triggerEntity = entityManager.CreateEntity();
-            triggerEntity.Position = new Vector2(-500.0f, 0.0f);
-            triggerEntity.Rotation = MathF.PI * 45.0f / 180.0f;
-            TriggerColliderCmp triggerCol = entityManager.AddComponent(triggerEntity,
-                new TriggerColliderCmp(new RectangleCollider(128.0f, 256.0f)));
-            triggerCol.AddCollisionLayer((CollisionBitmask)0x01);
-            triggerCol.AddCollisionMask((CollisionBitmask)0x01);
-            triggerCol.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
-                Entity e2, ColliderBody c2, ColliderType type, in Manifold manifold) =>
-            {
-                string entity2 = "Static";
-                if (e2 != null)
-                    entity2 = e2.Id.ToString();
-                Console.WriteLine(manifold.Normal);
-                DebugLog.Success("Trigger ENTER: {0}, type: {1}, Num collisions: {2}", 
-                    entity2, type, c1.CurrentCollisions.Count);
-            };
-
-            triggerCol.OnTriggerStay += (Entity e1, TriggerColliderCmp c1,
-                Entity e2, ColliderBody c2, ColliderType type, in Manifold manifold) =>
-            {
-                string entity2 = "Static";
-                if (e2 != null)
-                    entity2 = e2.Id.ToString();
-                Console.WriteLine(manifold.Normal * manifold.Depth);
-                e2.Position -= manifold.Normal * manifold.Depth;
-                //DebugLog.Warning("Trigger STAY: {0}, type: {1}, Num collisions: {2}",
-                //    entity2, type, c1.CurrentCollisions.Count);
-            };
-
-            triggerCol.OnTriggerExit += (Entity e1, TriggerColliderCmp c1,
-                Entity e2, ColliderBody c2, ColliderType type) =>
-            {
-                string entity2 = "Static";
-                if (e2 != null)
-                    entity2 = e2.Id.ToString();
-                DebugLog.Error("Trigger EXIT: {0}, type: {1}, Num collisions: {2}",
-                    entity2, type, c1.CurrentCollisions.Count);
-            };
-
-            /*
-            Entity block   = entityManager.CreateEntity();
-            block.Position = new Vector2(0.0f, 16.0f * 20.0f);
-            PhysicsCmp blockPhysics = entityManager.AddComponent(block, new PhysicsCmp());
-            blockPhysics.GravityMultiplier = 0.0f;
-            blockPhysics.Mass = 0.0f;
-            blockPhysics.Inertia = 0.0f;
-            CollisionCmp blockCollision = entityManager.AddComponent(block,
-                new CollisionCmp(new RectangleCollider(1024.0f, 128.0f),
-                //Material.Friction));
-            blockCollision.Material.Restitution = 0.8f;
-            blockCollision.AddCollisionLayer((CollisionBitmask)0x01);
-            blockCollision.AddCollisionMask((CollisionBitmask)0x01);
-            */
-            StaticCollider block = updateSystems.GetSystem<PhysicsSystem>().
-                AddStaticCollider(new RectangleCollider(1024.0f, 128.0f), 
-                Material.One, (CollisionBitmask)0x01, (CollisionBitmask)0x01);
-            block.Position = new Vector2(0.0f, 16.0f * 20.0f);
 
             Random rnd = new Random();
-            const int COLUMNS = 0;
-            const int ROWS    = 0;
-            for(int i = 0;i < COLUMNS; ++i)
+            const int RECT_WIDTH  = 40;
+            const int RECT_HEIGHT = 30;
+            for(int i = 0;i < RECT_HEIGHT; ++i)
             {
-                for(int j = 0;j < ROWS; ++j)
+                for(int j = 0;j < RECT_WIDTH; ++j)
                 {
-                    float x = (i - ((COLUMNS / 2) - 1)) * 32.0f;
-                    float y = (j - ((ROWS / 2) - 1)) * 32.0f;
+                    float x = (j - ((RECT_WIDTH / 2))) * 16.0f;
+                    float y = (i - ((RECT_HEIGHT / 2))) * 16.0f;
+                    Vector2 pos = new Vector2(x, y);
 
-                    Entity e = entityManager.CreateEntity();
-                    e.Position = new Vector2(x, y);
-                    PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-                    phy.Inertia = (1.0f / 12.0f) * phy.Mass * 
-                        (16.0f * 16.0f + 16.0f * 16.0f);
-                    //phy.Inertia = 2000.0f;
-                    //phy.Inertia = 0.0f;
-
-                    SpriteCmp spr = entityManager.AddComponent(e,
-                        new SpriteCmp(tileSetTexture, new Rectangle(
-                            rnd.Next(3) * 16,
-                            rnd.Next(15) * 16, 16, 16)));
-                    spr.Origin = new Vector2(8.0f, 8.0f);
-                    ColliderCmp col = entityManager.AddComponent(e,
-                        new ColliderCmp(new RectangleCollider(16.0f, 16.0f),
-                        Material.One)); //new CircleCollider(8.0f)
-                    //col.Material.Restitution = 0.8f;
-                    col.AddCollisionLayer((CollisionBitmask)0x01);
-                    col.AddCollisionMask((CollisionBitmask)0x01);
+                    if (j == 0 || i == 0 || 
+                        j == RECT_WIDTH - 1 || 
+                        i == RECT_HEIGHT - 1)
+                    {
+                        tiles.Add(new Tile(pos, new Rectangle(1 * 16, 4 * 16, 16, 16)));
+                    }
+                    else
+                    {
+                        tiles.Add(new Tile(pos, new Rectangle(5 * 16, 1 * 16, 16, 16)));
+                    }
                 }
             }
-        }
 
-        private void CreateMouseEntity()
-        {
-            if(mouseEntity == null)
+            physiscSystem.Iterations = 1;
+            physiscSystem.Gravity = Vector2.Zero;
+            //TOP WALL
+            StaticCollider col = physiscSystem.AddStaticCollider(
+                new RectangleCollider(RECT_WIDTH * 16.0f, 16.0f), Material.Rubber,
+                CollisionBitmask.Wall, CollisionBitmask.All);
+            col.Position = new Vector2(0.0f, -RECT_HEIGHT * 16.0f * 0.5f + 16.0f * 0.5f);
+            //BOTTOM WALL
+            col = physiscSystem.AddStaticCollider(
+                new RectangleCollider(RECT_WIDTH * 16.0f, 16.0f), Material.Rubber,
+                CollisionBitmask.Wall, CollisionBitmask.All);
+            col.Position = new Vector2(0.0f, +RECT_HEIGHT * 16.0f * 0.5f - 16.0f * 0.5f);
+            //LEFT WALL
+            col = physiscSystem.AddStaticCollider(
+                new RectangleCollider(16.0f, RECT_HEIGHT * 16.0f), Material.Rubber,
+                CollisionBitmask.Wall, CollisionBitmask.All);
+            col.Position = new Vector2(-RECT_WIDTH * 16.0f * 0.5f + 16.0f * 0.5f, 0.0f);
+            //RIGHT WALL
+            col = physiscSystem.AddStaticCollider(
+                new RectangleCollider(16.0f, RECT_HEIGHT * 16.0f), Material.Rubber,
+                CollisionBitmask.Wall, CollisionBitmask.All);
+            col.Position = new Vector2(+RECT_WIDTH * 16.0f * 0.5f - 16.0f * 0.5f, 0.0f);
+
+            for (int i = 0;i < 6; ++i)
             {
-                mouseEntity = entityManager.CreateEntity();
-                mouseEntity.Rotation = MathF.PI * 45.0f / 180.0f;
-                TriggerColliderCmp mouseCol = entityManager.AddComponent(mouseEntity,
-                    new TriggerColliderCmp(new CircleCollider(16.0f)));
-                mouseCol.AddCollisionLayer((CollisionBitmask)0x01);
-                mouseCol.AddCollisionMask((CollisionBitmask)0x01);
-                /*
-                mouseCol.OnTriggerStay += (Entity e1, TriggerCollisionCmp c1,
-                    Entity e2, ColliderBody c2, CollisionType type, in Manifold manifold) =>
+                actions.Add(CreateDiceMoveAction(32.0f * (i + 1), 
+                    new Rectangle(64 + 32 * i, 0, 32, 32)));
+            }
+            actions.Add(new DiceAction(new Rectangle(32 * 6 + 64, 0, 32, 32), Color.White,
+                (Game1 game) =>
                 {
-                    string entity2 = "Static";
-                    if (e2 != null)
-                        entity2 = e2.Id.ToString();
-                    Console.WriteLine(manifold.Normal);
-                    Console.WriteLine("Mouse enter: {0}, type: {1}", entity2, type);
-                };
-                */
-            }
+                    Vector2 dir = MouseInput.GetPosition(camera) - player.Position;
+                    dir.Normalize();
+                    dir *= 100.0f;
+
+                    CreateProjectileAttack(CollisionBitmask.Enemy | CollisionBitmask.Wall,
+                        dir, player.Position, new Color(0, 255, 0));
+                },
+                (Game1 game, ShapeBatch shapeBatch) =>
+                {
+                    Vector2 dir = MouseInput.GetPosition(camera) - player.Position;
+                    dir.Normalize();
+                    RaycastResult raycast = updateSystems.GetSystem<PhysicsSystem>()
+                        .Raycast(player.Position, dir, ColliderType.Static);
+
+                    if (raycast.HasCollided && raycast.Distance < 100.0f)
+                    {
+                        shapeBatch.DrawLine(player.Position, player.Position + dir * raycast.Distance,
+                            2.0f, Color.LightBlue);
+                    }
+                    else
+                    {
+                        dir *= 200.0f;
+                        shapeBatch.DrawLine(player.Position, player.Position + dir, 
+                            2.0f, Color.LightBlue);
+                    }
+
+                }));
+
+            int width = screen.Width;
+            int height = screen.Height;
+
+            float halfW = width * 0.5f;
+            DiceQueue queue1 = new DiceQueue(actions, Keys.D1, new Vector2(0.0f, 0.0f), 4, 2.0f);
+            queue1.StartPosition = new Vector2(halfW - halfW * 0.5f - queue1.TotalWidth * 0.5f, height - 48.0f);
+            DiceQueue queue2 = new DiceQueue(actions, Keys.D2, new Vector2(0.0f, 0.0f), 4, 2.0f);
+            queue2.StartPosition = new Vector2(halfW + halfW * 0.5f - queue1.TotalWidth * 0.5f, height - 48.0f);
+
+            queues.Add(queue1);
+            queues.Add(queue2);
         }
 
-        private void DestroyMouseEntity()
+        public Entity CreateProjectileAttack(CollisionBitmask mask, Vector2 dir, 
+            Vector2 position, Color color)
         {
-            if(mouseEntity != null)
+            Entity ent = entityManager.CreateEntity();
+            ent.Position = position;
+
+            PhysicsCmp phy = entityManager.AddComponent(ent, new PhysicsCmp());
+            phy.Inertia        = 0.0f;
+            phy.LinearVelocity = dir;
+
+            TriggerColliderCmp col = entityManager.AddComponent(ent,
+                new TriggerColliderCmp(new CircleCollider(8.0f), 
+                CollisionBitmask.Attack, mask));
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                Entity e2, ColliderBody c2, ColliderType type, in Manifold m)
+                =>
             {
-                entityManager.RemoveEntity(mouseEntity);
-                mouseEntity = null;
-            }
+                if(type == ColliderType.Dynamic)
+                {
+                    if(entityManager.TryGetComponent(e2, out PhysicsCmp phy2))
+                    {
+                        phy2.Force += -m.Normal * 5000.0f;
+                    }
+                }
+
+                entityManager.RemoveEntity(e1);
+            };
+
+            SpriteCmp sprite = entityManager.AddComponent(ent,
+                new SpriteCmp(tileSetTexture, new Rectangle(0, 7 * 16, 16, 16)));
+            sprite.Color = color;
+            sprite.Origin = new Vector2(8.0f, 8.0f);
+
+            return ent;
         }
 
-        private void CreateCircleEntity()
+        protected void CreateEnemy(Vector2 pos)
         {
-            const float radius = 8.0f;
-            Entity e = entityManager.CreateEntity();
-            e.Position = MouseInput.GetPosition(camera);
-
-            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Inertia = (1.0f / 4.0f) * phy.Mass * radius * radius;
-            phy.LinearDamping = 0.0f;
-
-            ColliderCmp col = entityManager.AddComponent(e,
-                new ColliderCmp(new CircleCollider(radius), Material.Wood));
-            col.Material.Restitution = 0.8f;
-            col.AddCollisionLayer((CollisionBitmask)0x01);
-            col.AddCollisionMask((CollisionBitmask)0x01);
-            //col.OnCollision += (Entity e1, CollisionCmp c1, Entity e2, CollisionCmp c2,
-            //    in Manifold manifold) =>
-            //{
-            //    Console.WriteLine(e1.Id + " " + e2.Id);
-            //};
-        }
-
-        private void CreateRectangleEntity()
-        {
-            Random rnd = new Random();
-            const float MIN_SIZE = 16.0f;
-            const float MAX_SIZE = 32.0f;
-            float width = (float)rnd.NextDouble() * (MAX_SIZE - MIN_SIZE) + MIN_SIZE;
-            float height = (float)rnd.NextDouble() * (MAX_SIZE - MIN_SIZE) + MIN_SIZE;
-            Entity e = entityManager.CreateEntity();
-            e.Position = MouseInput.GetPosition(camera);
-            e.Rotation = MathF.PI * 45.0f / 180.0f;
-
-            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Inertia = (1.0f / 12.0f) * phy.Mass * (width * width + height * height);
-            phy.LinearDamping = 0.99f;
-            phy.AngularDamping = 0.99f;
-
-            ColliderCmp col = entityManager.AddComponent(e,
-                new ColliderCmp(new RectangleCollider(width, height),
-                Material.One));
-            col.AddCollisionLayer((CollisionBitmask)0x01);
-            col.AddCollisionMask((CollisionBitmask)0x01);
+            Entity enemy = entityManager.CreateEntity();
+            enemy.Position = pos;
+            SpriteCmp spriteCmp = entityManager.AddComponent(enemy,
+                new SpriteCmp(tileSetTexture, new Rectangle(3 * 16, 11 * 16, 16, 16)));
+            spriteCmp.Origin = new Vector2(8.0f, 8.0f);
+            PhysicsCmp physicsCmp = entityManager.AddComponent(enemy, new PhysicsCmp());
+            physicsCmp.GravityMultiplier = 0.0f;
+            physicsCmp.LinearDamping = 2.0f;
+            physicsCmp.Mass = 1.0f;
+            physicsCmp.Inertia = 0.0f;
+            ColliderCmp collisionCmp = entityManager.AddComponent(enemy,
+                new ColliderCmp(new CircleCollider(8.0f)));
+            collisionCmp.AddCollisionLayer(CollisionBitmask.Enemy);
+            collisionCmp.AddCollisionMask(CollisionBitmask.All);
+            collisionCmp.Material.Restitution = 1.0f;
         }
 
         protected override void Update(GameTime gameTime)
@@ -403,38 +478,10 @@ namespace TFG
                 PrintSizes();
             }
 
-            if (KeyboardInput.IsKeyPressed(Keys.Q))
-            {
-                Vector2 pos = MouseInput.GetPosition();
-                PrintSizes(ConsoleColor.Yellow);
-            }
-
             if(MouseInput.ScrollHasChanged())
             {
                 int sign = -MathF.Sign(MouseInput.ScrollValueDiff);
                 camera.Zoom += 0.1f * sign;
-            }
-
-            if(KeyboardInput.IsKeyPressed(Keys.D1))
-            {
-                camera.Zoom += 1f;
-                Console.WriteLine( camera.Zoom);
-            }
-
-            if (KeyboardInput.IsKeyPressed(Keys.D2))
-            {
-                camera.Zoom -= 0.1f;
-                Console.WriteLine(camera.Zoom);
-            }
-
-            if(KeyboardInput.IsKeyDown(Keys.Z))
-            {
-                camera.Rotation -= (MathF.PI / 180.0f) * 1.0f;
-            }
-
-            if (KeyboardInput.IsKeyDown(Keys.C))
-            {
-                camera.Rotation += (MathF.PI / 180.0f) * 1.0f;
             }
 
             if(KeyboardInput.IsKeyPressed(Keys.D5))
@@ -445,57 +492,8 @@ namespace TFG
                     screen.Resize(800, 600);
             }
 
-            if(MouseInput.IsLeftButtonPressed())
-            {
-                CreateMouseEntity();
-            }
-
-            if (MouseInput.IsRightButtonPressed())
-            {
-                DestroyMouseEntity();
-            }
-
-            PhysicsCmp physicsCmp = entityManager.GetComponent<PhysicsCmp>(player);
-            const float PLAYER_FORCE = 100.0f;
-            Vector2 force = Vector2.Zero;
-            if (KeyboardInput.IsKeyDown(Keys.Up))
-                force.Y -= 1.0f;
-            if (KeyboardInput.IsKeyDown(Keys.Down))
-                force.Y += 1.0f;
-            if (KeyboardInput.IsKeyDown(Keys.Left))
-                force.X -= 1.0f;
-            if (KeyboardInput.IsKeyDown(Keys.Right))
-                force.X += 1.0f;
-
-            if (force != Vector2.Zero)
-            {
-                force.Normalize();
-                force *= PLAYER_FORCE;
-                physicsCmp.Force += force;
-            }
-
             if (KeyboardInput.IsKeyDown(Keys.Space))
                 camera.Position = player.Position;
-
-            if(KeyboardInput.IsKeyDown(Keys.B))
-            {
-                physicsCmp.Torque += 1000.0f;
-                //player.Rotation += MathF.PI / 2.0f * dt;
-            }
-            if (KeyboardInput.IsKeyDown(Keys.M))
-            {
-                physicsCmp.Torque -= 1000.0f;
-                //player.Rotation -= MathF.PI / 2.0f * dt;
-            }
-
-            if (KeyboardInput.IsKeyDown(Keys.H))
-            {
-                player.Scale += 1.0f * dt;
-            }
-            if (KeyboardInput.IsKeyDown(Keys.K))
-            {
-                player.Scale -= 1.0f * dt;
-            }
             
 
             const float CAM_SPEED = 300.0f;
@@ -516,60 +514,38 @@ namespace TFG
                 camera.Position += vel;
             }
 
-            Rectangle bounds = camera.GetBounds();
-            //if (bounds.X < 0) Console.WriteLine("Left"); // camera.Position = new Vector2(0.0f, camera.Position.Y);
-            //if (bounds.Y < 0) Console.WriteLine("Top"); // camera.Position = new Vector2(camera.Position.X, 0.0f);
-            if (bounds.Right > screen.Width)
+            foreach (DiceQueue queue in queues)
             {
-                //Console.WriteLine("Right");
-                //camera.Position =
-                //    new Vector2(renderTarget2D.Width - bounds.Width, camera.Position.Y);
-            }
-                
-            if (bounds.Bottom > screen.Width)
-            {
-                //Console.WriteLine("Bottom");
-                //camera.Position =
-                //    new Vector2(camera.Position.X, renderTarget2D.Height - bounds.Height);
+                queue.Update(this, dt);
             }
 
-            if(KeyboardInput.IsKeyPressed(Keys.D3))
+            if (currentQueue == null)
             {
-                CreateCircleEntity();
-                Console.WriteLine(entityManager.GetEntities().Count);
-            }
-
-            if (KeyboardInput.IsKeyPressed(Keys.D4))
-            {
-                CreateRectangleEntity();
-                Console.WriteLine(entityManager.GetEntities().Count);
-            }
-
-            if (mouseEntity != null)
-            {
-                mouseEntity.Position = MouseInput.GetPosition(camera);
-            }
-
-            Vector2 rayStart = new Vector2(-200.0f, 0.0f);
-            Vector2 rayDir   = Vector2.Normalize(MouseInput.GetPosition(camera) - rayStart);
-            RaycastResult raycast = updateSystems.GetSystem<PhysicsSystem>()
-                .Raycast(rayStart, rayDir, ColliderType.All, CollisionBitmask.All);
-
-            if(raycast.HasCollided)
-            {
-                point = rayStart + rayDir * raycast.Distance;
-
-                switch(raycast.ColliderType)
+                for (int i = 0; i < queues.Count; ++i)
                 {
-                    case ColliderType.Static:  rayColor = Color.Red; break;
-                    case ColliderType.Dynamic: rayColor = Color.Cyan; break;
-                    case ColliderType.Trigger: rayColor = Color.Yellow; break;
-
+                    DiceQueue diceQueue = queues[i];
+                    if (KeyboardInput.IsKeyPressed(diceQueue.ActionKey) &&
+                        diceQueue.CanBeActivated)
+                    {
+                        currentQueue = diceQueue;
+                        currentQueue.IsEnabled = true;
+                        break;
+                    }
                 }
             }
             else
             {
-                point = Vector2.Zero;
+                if (MouseInput.IsLeftButtonPressed())
+                {
+                    currentQueue.ExecuteAction(this);
+                    currentQueue.IsEnabled = false;
+                    currentQueue = null;
+                }
+            }
+
+            if(KeyboardInput.IsKeyPressed(Keys.D3))
+            {
+                CreateEnemy(MouseInput.GetPosition(camera));
             }
 
             updateSystems.UpdateSystems();
@@ -617,78 +593,36 @@ namespace TFG
                 spriteBatch.Draw(tileSetTexture, t.Position, 
                     t.Source, Color.White);
             }
+
+            spriteBatch.End();
+
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            foreach (DiceQueue queue in queues)
+            {
+                queue.Draw(this, spriteBatch, blankTexture, mainTexture);
+            }
             spriteBatch.End();
 
             shapeBatch.Begin(camera);
-            //shapeBatcher.DrawFilledRectangle(new Rectangle(32, 32, 16, 16),
-            //    MathF.PI / 4.0f, new Vector2(8.0f, 8.0f), Color.Green);
-            /*
-            shapeBatcher.DrawRectangle(new Vector2(32, 32), new Vector2(32, 64),
-                1.0f, MathF.PI / 4, new Vector2(16.0f, 32.0f), Color.Red);
-
-            Vector2 center = new Vector2(screen.HalfWidth, screen.HalfHeight);
-            Vector2 mouse = MouseInput.GetPosition(camera);
-
-            shapeBatcher.DrawCircle(new Vector2(0.0f, 0.0f), 128.0f, 32, 4.0f, Color.Gold);
-            shapeBatcher.DrawLine(center, mouse, 4.0f, Color.Fuchsia);
-            */
 
             shapeBatch.DrawLine(new Vector2(0.0f, 0.0f),
                 new Vector2(0.0f, 50.0f), 4.0f, new Color(0, 255, 0));
             shapeBatch.DrawLine(new Vector2(0.0f, 0.0f),
                 new Vector2(50.0f, 0.0f), 4.0f, Color.Red);
-            shapeBatch.DrawLine(new Vector2(0.0f, screen.Height * 0.5f),
-               new Vector2(50.0f, screen.Height * 0.5f), 4.0f, new Color(255, 255, 255));
-            //if(mouseEntity != null)
-            //shapeBatch.DrawRectangle(MouseInput.GetPosition(camera), new Vector2(16.0f, 16.0f),
-            //    2.0f, mouseEntity.Rotation, new Vector2(8.0f), Color.Gray);
-            shapeBatch.DrawCircle(MouseInput.GetPosition(camera), 16.0f, 16, 2.0f, Color.Gray);
 
-            shapeBatch.End();
 
-            /* RayVsCircle Test
-            shapeBatch.Begin();
-            Vector2 circleCenter = new Vector2(400.0f, 300.0f);
-            float circleRadius = 32.0f;
-            Vector2 rayStart = new Vector2(100.0f, 300.0f);
-            Vector2 rayDir = Vector2.Normalize(MouseInput.GetPosition(screen) - rayStart);
-            shapeBatch.DrawCircle(circleCenter, circleRadius, 16, 2, Color.Red);
-            shapeBatch.DrawLine(rayStart, MouseInput.GetPosition(screen), new Color(0, 255, 0));
 
-            if (CollisionTester.RayVsCircle(rayStart, rayDir, circleCenter, circleRadius,
-                out float dist))
+            foreach (DiceQueue queue in queues)
             {
-                Console.WriteLine("ASD");
-                shapeBatch.DrawFilledRectangle(rayStart + rayDir * dist -
-                    new Vector2(2.0f, 2.0f), new Vector2(4.0f, 4.0f), Color.Yellow);
+                queue.DrawAction(this, shapeBatch);
             }
-            shapeBatch.End();
-            */
 
+            shapeBatch.End();
             drawSystems.UpdateSystems();
-
             shapeBatch.Begin(camera);
-            Vector2 rayStart = new Vector2(-200.0f, 0.0f);
-            Vector2 rayDir = Vector2.Normalize(MouseInput.GetPosition(camera) - rayStart);
-
-            shapeBatch.DrawLine(rayStart, MouseInput.GetPosition(camera), 
-                new Color(0, 255, 0));
-            if(point != Vector2.Zero)
-            {
-                shapeBatch.DrawFilledRectangle(point - new Vector2(2.0f),
-                    new Vector2(4.0f), rayColor);
-            }
 
             DebugTimer.Stop("Draw");
             DebugTimer.Draw(spriteBatch, font);
-            shapeBatch.End();
-
-            shapeBatch.Begin(camera);
-            foreach(Vector2 v in PhysicsSystem.contactPoints)
-            {
-                shapeBatch.DrawFilledRectangle(v - new Vector2(2.0f, 2.0f),
-                    new Vector2(4.0f, 4.0f), Color.Red);
-            }
             shapeBatch.End();
 
             //gameStates.DrawActiveStates(gameTime, spriteBatch);

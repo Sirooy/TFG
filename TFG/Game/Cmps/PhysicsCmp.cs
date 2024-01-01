@@ -17,8 +17,8 @@ namespace Cmps
         private float maxAngularVelocity;
         private float mass;
         private float inverseMass;
-        public float inertia;
-        public float inverseInertia;
+        private float inertia;
+        private float inverseInertia;
 
         public Vector2 MaxLinearVelocity
         {

@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Engine.Ecs;
+using Engine.Debug;
+using Engine.Core;
 using Core;
 using Cmps;
 using Physics;
-using Engine.Debug;
-using Engine.Core;
 
 namespace Systems
 {
@@ -135,8 +134,6 @@ namespace Systems
         private float deltaTime;
         private int iterations;
 
-        //BORRAR
-        public static List<Vector2> contactPoints = new List<Vector2>();
         public List<StaticCollider> StaticColliders { get { return staticColliders; } }
 
         public int Iterations 
@@ -546,51 +543,18 @@ namespace Systems
             {
                 data.Collision1.ExecuteTriggerEnterEvent(data.Entity1, data.Entity2,
                     data.Collision2, data.CollisionType, in data.Manifold);
-
-                //TODO: BORRAR
-                if (data.Manifold.NumContacts > 1)
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                    contactPoints.Add(data.Manifold.Contact2);
-                }
-                else
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                }
             }
 
             foreach (var data in triggerStayEvents)
             {
                 data.Collision1.ExecuteTriggerStayEvent(data.Entity1, data.Entity2,
                     data.Collision2, data.CollisionType, in data.Manifold);
-
-                //TODO: BORRAR
-                if (data.Manifold.NumContacts > 1)
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                    contactPoints.Add(data.Manifold.Contact2);
-                }
-                else
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                }
             }
 
             foreach (var data in triggerExitEvents)
             {
                 data.Collision1.ExecuteTriggerExitEvent(data.Entity1, data.Entity2,
                     data.Collision2, data.CollisionType);
-
-                //TODO: BORRAR
-                if (data.Manifold.NumContacts > 1)
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                    contactPoints.Add(data.Manifold.Contact2);
-                }
-                else
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                }
             }
 
             triggerEnterEvents.Clear();
@@ -602,8 +566,6 @@ namespace Systems
 
         public void SolveCollisions()
         {
-            contactPoints.Clear();
-
             for (int i = 0; i < dynamicCollisions.Count; ++i)
             {
                 CollisionData data = dynamicCollisions[i];
@@ -612,17 +574,6 @@ namespace Systems
                     data.Collision1, data.Collision2, in data.Manifold);
                 SeparateBodies(data.Entity1, data.Entity2, data.Physics1, 
                     data.Physics2, in data.Manifold);
-
-                //TODO: BORRAR
-                if(data.Manifold.NumContacts > 1)
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                    contactPoints.Add(data.Manifold.Contact2);
-                }
-                else
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                }
             }
 
             for(int i = 0;i < staticCollisions.Count; ++i)
@@ -632,17 +583,6 @@ namespace Systems
                     data.Collision1, data.Collision2, in data.Manifold);
 
                 data.Entity.Position += data.Manifold.Normal * data.Manifold.Depth;
-
-                //TODO: BORRAR
-                if (data.Manifold.NumContacts > 1)
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                    contactPoints.Add(data.Manifold.Contact2);
-                }
-                else
-                {
-                    contactPoints.Add(data.Manifold.Contact1);
-                }
             }
 
             dynamicCollisions.Clear();

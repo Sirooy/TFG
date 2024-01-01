@@ -5,13 +5,6 @@ using Systems;
 
 namespace Cmps
 {
-    [Flags]
-    public enum CollisionBitmask : uint
-    {
-        None = 0x00,
-        All  = 0xFFFFFFFF
-    }
-
     public class ColliderCmp : ColliderBody
     {
         public delegate void CollisionEvent(Entity e1, ColliderCmp c1,
