@@ -44,8 +44,8 @@ namespace Systems
             });
             spriteBatch.End();
 
-            DrawEntitiesAxis();
-            DrawEntitiesPhysics();
+            //DrawEntitiesAxis();
+            //DrawEntitiesPhysics();
             DrawEntitiesColliders();
         }
 
