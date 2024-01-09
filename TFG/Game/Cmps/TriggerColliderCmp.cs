@@ -1,9 +1,6 @@
-﻿using Cmps;
-using Core;
-using Engine.Debug;
+﻿using Core;
 using Physics;
 using System.Collections.Generic;
-using Systems;
 
 namespace Cmps
 {

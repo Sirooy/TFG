@@ -5,7 +5,9 @@ namespace Engine.Debug
 {
     public static class DebugLog
     {
-        [Conditional("DEBUG")]
+        public const string DEFINE = "DEBUG";
+
+        [Conditional(DEFINE)]
         public static void Info(string message, params object[] args)
         {
             WriteLogHeader("INFO", ConsoleColor.Blue,
@@ -16,7 +18,7 @@ namespace Engine.Debug
             Console.ResetColor();
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void Warning(string message, params object[] args)
         {
             WriteLogHeader("WARNING", ConsoleColor.DarkYellow,
@@ -27,7 +29,7 @@ namespace Engine.Debug
             Console.ResetColor();
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void Success(string message, params object[] args)
         {
             WriteLogHeader("SUCCESS", ConsoleColor.Green,
@@ -38,7 +40,7 @@ namespace Engine.Debug
             Console.ResetColor();
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void Error(string message, params object[] args)
         {
             WriteLogHeader("ERROR", ConsoleColor.Red,
@@ -49,25 +51,25 @@ namespace Engine.Debug
             Console.ResetColor();
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void InfoIf(bool condition, string message, params object[] args)
         {
             if (condition) Info(message, args);
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void WarningIf(bool condition, string message, params object[] args)
         {
             if (condition) Warning(message, args);
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void SuccessIf(bool condition, string message, params object[] args)
         {
             if (condition) Success(message, args);
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void ErrorIf(bool condition, string message, params object[] args)
         {
             if (condition) Error(message, args);

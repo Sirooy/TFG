@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Engine.Ecs;
@@ -12,6 +13,8 @@ namespace Systems
 {
     public class PhysicsSystem : Engine.Ecs.System
     {
+        public const string DEBUG_DRAW_LAYER = "Physics";
+
         private class CollisionData
         {
             public Entity Entity1;
@@ -228,6 +231,8 @@ namespace Systems
             CheckTriggerVsStaticCollisions(triggerColCmps);
             CheckTriggerVsDynamicCollisions(triggerColCmps, colCmps);
             CheckTriggerVsTriggerCollisions(triggerColCmps);
+            DebugDrawEntityColliders();
+            DebugDrawCollisionsContactPoints();
             SolveCollisions();
             ExecuteCollisionEvents();
             ExecuteTriggerCollisionEvents();
@@ -922,6 +927,105 @@ namespace Systems
                         result.HasCollided  = true;
                     }
                 }
+            }
+        }
+        #endregion
+
+        #region Debug Draw
+
+        [Conditional(DebugDraw.DEBUG_DEFINE)]
+        private void DebugDrawEntityColliders()
+        {
+            if (!DebugDraw.IsLayerEnabled(DEBUG_DRAW_LAYER)) return;
+
+            //Static colliders
+            foreach(StaticCollider collider in staticColliders)
+            {
+                DebugDrawCollider(collider.Position, collider.Rotation,
+                    collider.Scale, collider.Collider, Color.Gray);
+            }
+
+            //Rigid colliders
+            entityManager.ForEachComponent((ColliderCmp col) =>
+            {
+                DebugDrawCollider(col.Transform.CachedWorldPosition,
+                    col.Transform.CachedWorldRotation,
+                    col.Transform.CachedWorldScale,
+                    col.Collider, Color.Yellow);
+            });
+
+            //Trigger colliders
+            entityManager.ForEachComponent((TriggerColliderCmp col) =>
+            {
+                DebugDrawCollider(col.Transform.CachedWorldPosition,
+                    col.Transform.CachedWorldRotation,
+                    col.Transform.CachedWorldScale,
+                    col.Collider, Color.Cyan);
+            });
+        }
+
+        [Conditional(DebugDraw.DEBUG_DEFINE)]
+        private void DebugDrawCollider(Vector2 pos, float rotation, float scale,
+            ColliderShape shape, Color color)
+        {
+            if(shape.Type == ColliderShapeType.Circle)
+            {
+                CircleCollider circle = (CircleCollider) shape;
+                DebugDraw.Circle(DEBUG_DRAW_LAYER, pos, circle.CachedRadius, 
+                    rotation, color);
+            }
+            else if(shape.Type == ColliderShapeType.Rectangle)
+            {
+                RectangleCollider rect = (RectangleCollider) shape;
+                Vector2 size           = new Vector2(rect.Width * scale, 
+                    rect.Height * scale);
+                DebugDraw.CenteredRect(DEBUG_DRAW_LAYER, pos, size, 
+                    rotation, color);
+            }
+        }
+
+        [Conditional(DebugDraw.DEBUG_DEFINE)]
+        private void DebugDrawCollisionsContactPoints()
+        {
+            if (!DebugDraw.IsLayerEnabled(DEBUG_DRAW_LAYER)) return;
+
+            foreach (StaticCollisionData col in staticCollisions)
+            {
+                DebugDrawContactPoints(in col.Manifold, Color.Red);
+            }
+
+            foreach(CollisionData col in dynamicCollisions)
+            {
+                DebugDrawContactPoints(in col.Manifold, Color.Red);
+            }
+
+            foreach(TriggerCollisionEventData col in triggerEnterEvents)
+            {
+                DebugDrawContactPoints(in col.Manifold, Color.Blue);
+            }
+
+            foreach (TriggerCollisionEventData col in triggerStayEvents)
+            {
+                DebugDrawContactPoints(in col.Manifold, Color.Blue);
+            }
+
+            foreach (TriggerCollisionEventData col in triggerExitEvents)
+            {
+                DebugDrawContactPoints(in col.Manifold, Color.Blue);
+            }
+        }
+
+        [Conditional(DebugDraw.DEBUG_DEFINE)]
+        private void DebugDrawContactPoints(in Manifold m, Color color)
+        {
+            if(m.NumContacts > 0)
+            {
+                DebugDraw.Point(DEBUG_DRAW_LAYER, m.Contact1, color);
+            }
+
+            if(m.NumContacts > 1)
+            {
+                DebugDraw.Point(DEBUG_DRAW_LAYER, m.Contact2, color);
             }
         }
 

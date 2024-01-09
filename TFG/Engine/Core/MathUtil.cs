@@ -1,10 +1,16 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 
 namespace Engine.Core
 {
     public static class MathUtil
     {
+        public const float PI        = MathF.PI;
+        public const float PI2       = PI * 2.0f;
+        public const float PI_OVER_2 = PI / 2.0f;
+        public const float PI_OVER_4 = PI / 4.0f;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Cross2D(this Vector2 v1, Vector2 v2)
         {

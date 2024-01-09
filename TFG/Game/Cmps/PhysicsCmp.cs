@@ -91,5 +91,15 @@ namespace Cmps
             maxLinearVelocity  = new Vector2(1000000.0f, 1000000.0f);
             maxAngularVelocity = 1000000.0f;
         }
+
+        public static float CalculateRectangleInertia(float width, float height, float mass)
+        {
+            return (1.0f / 12.0f) * mass * (width * width + height * height);
+        }
+
+        public static float CalculateCircleInertia(float radius, float mass)
+        {
+            return 0.5f * mass * radius * radius;
+        }
     }
 }

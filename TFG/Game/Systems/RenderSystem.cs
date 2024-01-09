@@ -1,13 +1,14 @@
-﻿using Cmps;
-using Core;
+﻿using System;
+using System.Diagnostics;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Engine.Core;
 using Engine.Debug;
 using Engine.Ecs;
 using Engine.Graphics;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using Cmps;
+using Core;
 using Physics;
-using System;
 
 namespace Systems
 {
@@ -30,7 +31,6 @@ namespace Systems
 
         public override void Update()
         {
-
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
             entityManager.ForEachComponent((Entity e, SpriteCmp sprite) =>
             {
@@ -44,116 +44,33 @@ namespace Systems
             });
             spriteBatch.End();
 
-            DrawEntitiesAxis();
-            DrawEntitiesPhysics();
-            DrawEntitiesColliders();
+            DebugDrawEntitiesAxis();
         }
 
-        //[System.Diagnostics.Conditional("DEBUG")]
-        private void DrawEntitiesAxis()
+        #region Debug Draw
+
+        [Conditional(DebugDraw.DEBUG_DEFINE)]
+        private void DebugDrawEntitiesAxis()
         {
-            shapeBatch.Begin(camera);
+            if (!DebugDraw.IsMainLayerEnabled()) return;
+
             entityManager.ForEachEntity((Entity e) =>
             {
-                float length = 30.0f * camera.InvZoom;
-                float thickness = 4.0f * camera.InvZoom;
+                const float AXIS_LENGTH = 32.0f;
 
                 Vector2 xAxis = new Vector2(MathF.Cos(e.Rotation),
                     MathF.Sin(e.Rotation));
                 Vector2 yAxis = new Vector2(-MathF.Sin(e.Rotation),
                     MathF.Cos(e.Rotation));
 
-                shapeBatch.DrawLine(e.Position, xAxis * e.Scale * length +
-                    e.Position, thickness, Color.Red, 0.0f);
-                shapeBatch.DrawLine(e.Position, yAxis * e.Scale * length +
-                    e.Position, thickness, new Color(0, 255, 0), 0.0f);
-                shapeBatch.DrawFilledRectangle(e.Position,
-                    new Vector2(thickness * 2.0f), e.Rotation,
-                    new Vector2(thickness), Color.Blue, 0.0f);
+                DebugDraw.Line(e.Position, e.Position + 
+                    xAxis * AXIS_LENGTH, Color.Red);
+                DebugDraw.Line(e.Position, e.Position + 
+                    yAxis * AXIS_LENGTH, new Color(0, 255, 0));
+                DebugDraw.Point(e.Position, Color.Blue);
             });
-            shapeBatch.End();
         }
 
-        //[System.Diagnostics.Conditional("DEBUG")]
-        private void DrawEntitiesPhysics()
-        {
-            shapeBatch.Begin(camera);
-            entityManager.ForEachComponent((Entity e, PhysicsCmp physics) =>
-            {
-                Vector2 velocity = physics.LinearVelocity;
-
-                shapeBatch.DrawLine(e.Position, e.Position + velocity, 1.0f,
-                    Color.Cyan, 0.0f);
-            });
-            shapeBatch.End();
-        }
-
-        //[System.Diagnostics.Conditional("DEBUG")]
-        private void DrawEntitiesColliders()
-        {
-            shapeBatch.Begin(camera);
-            entityManager.ForEachComponent((Entity e, ColliderCmp collision) =>
-            {
-                ColliderShape shape = collision.Collider;
-
-                if (shape.Type == ColliderShapeType.Circle)
-                {
-                    CircleCollider circle = (CircleCollider) shape;
-
-                    float rotation  = collision.Transform.GetWorldRotation(e);
-                    float cos       = MathF.Cos(rotation);
-                    float sin       = MathF.Sin(rotation);
-                    float radius    = collision.Transform.GetWorldScale(e) * 
-                        circle.Radius;
-                    Vector2 center  = collision.Transform.GetWorldPosition(e);
-                    Vector2 lineDir = new Vector2(cos * radius, sin * radius);
-
-                    shapeBatch.DrawCircle(center, radius, 24, 2.0f, Color.Yellow);
-                    shapeBatch.DrawLine(center, center + lineDir, 2.0f, Color.Yellow);
-                }
-                else if (shape.Type == ColliderShapeType.Rectangle)
-                {
-                    RectangleCollider rectangle = (RectangleCollider) shape;
-                    Vector2 size = new Vector2(rectangle.Width, rectangle.Height) * 
-                        collision.Transform.GetWorldScale(e);
-
-                    shapeBatch.DrawRectangle(collision.Transform.GetWorldPosition(e),
-                        size, 2.0f, collision.Transform.GetWorldRotation(e), 
-                        size * 0.5f, Color.Yellow);
-                }
-            });
-
-            entityManager.ForEachComponent((Entity e, TriggerColliderCmp collision) =>
-            {
-                ColliderShape shape = collision.Collider;
-
-                if (shape.Type == ColliderShapeType.Circle)
-                {
-                    CircleCollider circle = (CircleCollider)shape;
-
-                    float rotation = collision.Transform.GetWorldRotation(e);
-                    float cos = MathF.Cos(rotation);
-                    float sin = MathF.Sin(rotation);
-                    float radius = collision.Transform.GetWorldScale(e) *
-                        circle.Radius;
-                    Vector2 center = collision.Transform.GetWorldPosition(e);
-                    Vector2 lineDir = new Vector2(cos * radius, sin * radius);
-
-                    shapeBatch.DrawCircle(center, radius, 24, 2.0f, Color.Cyan);
-                    shapeBatch.DrawLine(center, center + lineDir, 2.0f, Color.Cyan);
-                }
-                else if (shape.Type == ColliderShapeType.Rectangle)
-                {
-                    RectangleCollider rectangle = (RectangleCollider)shape;
-                    Vector2 size = new Vector2(rectangle.Width, rectangle.Height) *
-                        collision.Transform.GetWorldScale(e);
-
-                    shapeBatch.DrawRectangle(collision.Transform.GetWorldPosition(e),
-                        size, 2.0f, collision.Transform.GetWorldRotation(e),
-                        size * 0.5f, Color.Cyan);
-                }
-            });
-            shapeBatch.End();
-        }
+        #endregion
     }
 }
