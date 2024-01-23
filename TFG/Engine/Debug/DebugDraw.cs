@@ -1,9 +1,9 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Graphics;
-using System;
 
 namespace Engine.Debug
 {
@@ -190,6 +190,7 @@ namespace Engine.Debug
         private static ShapeBatch shapeBatch;
         private static Dictionary<string, LayerData> layers;
         private static LayerData mainLayer;
+        public static  Camera2D Camera;
 
         [Conditional(DEBUG_DEFINE)]
         public static void Init(GraphicsDevice graphicsDevice)
@@ -197,6 +198,7 @@ namespace Engine.Debug
             shapeBatch = new ShapeBatch(graphicsDevice, 200);
             layers     = new Dictionary<string, LayerData>();
             mainLayer  = new LayerData();
+            Camera     = null;
         }
 
         [Conditional(DEBUG_DEFINE)]
@@ -653,10 +655,13 @@ namespace Engine.Debug
         #endregion
 
         [Conditional(DEBUG_DEFINE)]
-        public static void Draw(Camera2D camera)
+        public static void Draw()
         {
-            shapeBatch.Begin(camera);
-            
+            if (Camera == null)
+                shapeBatch.Begin();
+            else
+                shapeBatch.Begin(Camera);
+
             DrawLayer(mainLayer);
             foreach (LayerData layer in layers.Values)
             {

@@ -5,13 +5,15 @@ namespace Engine.Debug
 {
     public static class DebugCode
     {
-        [Conditional("DEBUG")]
+        public const string DEFINE = "DEBUG";
+
+        [Conditional(DEFINE)]
         public static void Execute(Action action)
         {
             action();
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         public static void ExecuteIf(bool condition, Action action)
         {
             if(condition)

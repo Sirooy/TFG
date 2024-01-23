@@ -8,6 +8,7 @@ using Engine.Graphics;
 using Microsoft.Xna.Framework.Graphics;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Engine.Core;
 
 namespace Engine.Graphics
 {
@@ -166,13 +167,42 @@ namespace Engine.Graphics
             return coords;
         }
 
-        public Rectangle GetBounds()
+        public AABB GetBounds()
         {
-            return new Rectangle(
-                (int)(position.X - positionAnchor.X * screen.Width * invZoom),
-                (int)(position.Y - positionAnchor.Y * screen.Height * invZoom),
-                (int)(screen.Width * invZoom),
-                (int)(screen.Height * invZoom));
+            RecalculateView();
+
+            float w = screen.Width * viewportSize.X;
+            float h = screen.Height * viewportSize.Y;
+
+            //Camera Rect points
+            Vector2[] points = new Vector2[4]
+            {
+                new Vector2(0.0f, 0.0f),
+                new Vector2(w, 0.0f),
+                new Vector2(0.0f, h),
+                new Vector2(w, h)
+            };
+
+            Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
+            Vector2 max = new Vector2(float.MinValue, float.MinValue);
+
+            //Transform all the points in the rect with the inverse view
+            //and get the min and max values to create an AABB that represents
+            //the camera bounds
+            for(int i = 0;i < points.Length; ++i)
+            {
+                Vector2 p = points[i];
+
+                float x = p.X * inverseView.M11 + p.Y * inverseView.M21 + inverseView.M41;
+                float y = p.X * inverseView.M12 + p.Y * inverseView.M22 + inverseView.M42;
+
+                if (x < min.X) min.X = x;
+                if (x > max.X) max.X = x;
+                if (y < min.Y) min.Y = y;
+                if (y > max.Y) max.Y = y;
+            }
+
+            return new AABB(min.X, max.X, min.Y, max.Y);
         }
 
         public Matrix GetViewTransform()
@@ -209,7 +239,7 @@ namespace Engine.Graphics
                         0.0f);
                 }
 
-                if ((isDirty & DirtyFlags.Translation) == DirtyFlags.Translation)
+                if ((isDirty & DirtyFlags.Scale) == DirtyFlags.Scale)
                 {
                     scaleMatrix = Matrix.CreateScale(
                         (1.0f / viewportSize.X) * invZoom,

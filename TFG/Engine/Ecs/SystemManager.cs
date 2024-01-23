@@ -88,6 +88,11 @@ namespace Engine.Ecs
             activeSystems.RemoveAt(index);
         }
 
+        public void DisableAllSystems()
+        {
+            activeSystems.Clear();
+        }
+
         public void UpdateSystems()
         {
             for(int i = 0;i < activeSystems.Count; ++i)

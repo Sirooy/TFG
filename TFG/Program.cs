@@ -1,3 +1,3 @@
 ﻿
-using var game = new TFG.Game1();
+using var game = new TFG.GameMain();
 game.Run();

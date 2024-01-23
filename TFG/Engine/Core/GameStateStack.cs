@@ -15,7 +15,7 @@ namespace Engine.Core
         public virtual void OnEnter()                 { }
         public virtual void OnExit()                  { }
         public virtual bool Update(GameTime gameTime) { return true; }
-        public virtual bool Draw(GameTime gameTime, SpriteBatch spriteBatch) { return true; }
+        public virtual bool Draw(GameTime gameTime)   { return true; }
     };
 
     public class GameStateStack
@@ -153,14 +153,14 @@ namespace Engine.Core
             }
         }
 
-        public void DrawActiveStates(GameTime gameTime, SpriteBatch spriteBatch)
+        public void DrawActiveStates(GameTime gameTime)
         {
             int i     = activeStates.Count - 1;
             bool next = true;
 
             while(i > -1 && next)
             {
-                next = activeStates[i].State.Draw(gameTime, spriteBatch);
+                next = activeStates[i].State.Draw(gameTime);
                 i--;
             }
         }

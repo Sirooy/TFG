@@ -5,7 +5,9 @@ namespace Engine.Debug
 {
     public static class DebugAssert
     {
-        [Conditional("DEBUG")]
+        public const string DEFINE = "DEBUG";
+
+        [Conditional(DEFINE)]
         //Forces the debugger to step out of the
         //function when the exception is thrown
         [DebuggerNonUserCode()]
@@ -23,6 +25,8 @@ namespace Engine.Debug
             throw new ApplicationException("Assert Error");
         }
 
+        [Conditional(DEFINE)]
+        [DebuggerNonUserCode()]
         public static void Fail(bool condition, string message = "", params object[] args)
         {
             if (!condition) return;
@@ -37,7 +41,7 @@ namespace Engine.Debug
             throw new ApplicationException("Assert Error");
         }
 
-        [Conditional("DEBUG")]
+        [Conditional(DEFINE)]
         [DebuggerNonUserCode()]
         public static void ThrowError(string message = "", params object[] args)
         {

@@ -11,7 +11,6 @@ namespace Cmps
         public Rectangle? SourceRect;
         public Vector2 Origin;
         public Color Color;
-        public float LayerDepth;
 
         public SpriteCmp(Texture2D texture, Rectangle? source = null)
         {
@@ -20,7 +19,6 @@ namespace Cmps
             this.SourceRect = source;
             this.Origin     = Vector2.Zero;
             this.Color      = Color.White;
-            this.LayerDepth = 0.0f;
         }
     }
 }

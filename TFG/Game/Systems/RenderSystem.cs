@@ -16,31 +16,31 @@ namespace Systems
     {
         private EntityManager<Entity> entityManager;
         private SpriteBatch spriteBatch;
-        private ShapeBatch shapeBatch;
         private Camera2D camera;
 
         public RenderSystem(EntityManager<Entity> entityManager, 
-            SpriteBatch spriteBatch, ShapeBatch shapeBatch, 
-            Camera2D camera)
+            SpriteBatch spriteBatch, Camera2D camera)
         {
             this.entityManager = entityManager;
             this.spriteBatch   = spriteBatch;
-            this.shapeBatch    = shapeBatch;
             this.camera        = camera;
         }
 
         public override void Update()
         {
-            spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
+            spriteBatch.Begin(camera, sortMode: SpriteSortMode.FrontToBack, 
+                samplerState: SamplerState.PointClamp);
             entityManager.ForEachComponent((Entity e, SpriteCmp sprite) =>
             {
                 DebugAssert.Success(sprite.Texture != null, 
                     "Cannot draw sprite with null texture");
-
-                spriteBatch.Draw(sprite.Texture, sprite.Transform.GetWorldPosition(e),
-                    sprite.SourceRect, sprite.Color, sprite.Transform.GetWorldRotation(e),
-                    sprite.Origin, sprite.Transform.GetWorldScale(e), SpriteEffects.None, 
-                    sprite.LayerDepth);
+                sprite.Transform.CacheTransform(e);
+                
+                float depth = ((e.Position.Y / float.MaxValue) * 0.5f);// + 0.5f;
+                spriteBatch.Draw(sprite.Texture, sprite.Transform.CachedWorldPosition,
+                    sprite.SourceRect, sprite.Color, sprite.Transform.CachedWorldRotation,
+                    sprite.Origin, sprite.Transform.CachedWorldScale, SpriteEffects.None,
+                    (e.Position.Y / 10000.0f) * 0.5f + 0.5f);
             });
             spriteBatch.End();
 

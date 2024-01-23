@@ -81,10 +81,10 @@ namespace Engine.Graphics
             graphicsDevice.SetRenderTarget(renderTarget);
         }
 
-        public void Present(SpriteBatch spriteBatch, SamplerState sampler)
+        public void Present(SpriteBatch spriteBatch, SamplerState sampler, Color clearColor)
         {
             graphicsDevice.SetRenderTarget(null);
-            graphicsDevice.Clear(Color.Red);
+            graphicsDevice.Clear(clearColor);
 
             spriteBatch.Begin(samplerState: sampler);
             spriteBatch.Draw(renderTarget, destinationRect, null, Color.White);

@@ -1,34 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Xna.Framework;
+using Engine.Core;
 using Cmps;
 using Core;
-using Microsoft.Xna.Framework;
 
 namespace Physics
 {
-    public struct AABB
-    {
-        public float Left;
-        public float Right;
-        public float Top;
-        public float Bottom;
-
-        public float Width  { get { return Right - Left; } }
-        public float Height { get { return Bottom - Top; } }
-
-        public AABB(float left, float right, float top, float bottom)
-        {
-            Left   = left;
-            Right  = right;
-            Top    = top;
-            Bottom = bottom;
-        }
-    }
-
     public enum ColliderShapeType
     {
         Circle = 0,
