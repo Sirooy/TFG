@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using Engine.Core;
+﻿using System.Collections.Generic;
 using Engine.Debug;
+using Microsoft.Xna.Framework;
 
 namespace Engine.Ecs
 {
-    public abstract class System
+    public abstract class GameSystem
     {
-        public abstract void Update();
+        public abstract void Update(float dt);
     }
 
     public class SystemManager
@@ -15,28 +14,28 @@ namespace Engine.Ecs
         private class ActiveSystem
         {
             public int Id;
-            public System System;
+            public GameSystem System;
 
-            public ActiveSystem(int id, System system)
+            public ActiveSystem(int id, GameSystem system)
             {
                 Id = id;
                 System = system;
             }
         }
 
-        private readonly Dictionary<int, System> systems;
+        private readonly Dictionary<int, GameSystem> systems;
         private readonly List<ActiveSystem> activeSystems;
 
         public SystemManager() 
         {
-            systems       = new Dictionary<int, System>();
+            systems       = new Dictionary<int, GameSystem>();
             activeSystems = new List<ActiveSystem>();
         }
 
         public void RegisterSystem<TSystem>(TSystem system) 
-            where TSystem : System
+            where TSystem : GameSystem
         {
-            int id = IdMetadataGenerator<System, TSystem>.Id;
+            int id = IdMetadataGenerator<GameSystem, TSystem>.Id;
 
             DebugAssert.Success(!systems.ContainsKey(id),
                 "System \"{0}\" has already been registered",
@@ -46,9 +45,9 @@ namespace Engine.Ecs
         }
 
         public TSystem GetSystem<TSystem>()
-            where TSystem : System
+            where TSystem : GameSystem
         {
-            int id = IdMetadataGenerator<System, TSystem>.Id;
+            int id = IdMetadataGenerator<GameSystem, TSystem>.Id;
 
             DebugAssert.Success(systems.ContainsKey(id),
                 "System \"{0}\" has not been registered",
@@ -58,9 +57,9 @@ namespace Engine.Ecs
         }
 
         public void EnableSystem<TSystem>()
-            where TSystem : System
+            where TSystem : GameSystem
         {
-            int id = IdMetadataGenerator<System, TSystem>.Id;
+            int id = IdMetadataGenerator<GameSystem, TSystem>.Id;
 
             DebugAssert.Success(systems.ContainsKey(id),
                 "System \"{0}\" has not been registered",
@@ -70,9 +69,9 @@ namespace Engine.Ecs
         }
 
         public void DisableSystem<TSystem>()
-            where TSystem : System
+            where TSystem : GameSystem
         {
-            int id = IdMetadataGenerator<System, TSystem>.Id;
+            int id = IdMetadataGenerator<GameSystem, TSystem>.Id;
 
             DebugAssert.Success(systems.ContainsKey(id),
                 "System \"{0}\" has not been registered",
@@ -93,11 +92,11 @@ namespace Engine.Ecs
             activeSystems.Clear();
         }
 
-        public void UpdateSystems()
+        public void UpdateSystems(float dt)
         {
             for(int i = 0;i < activeSystems.Count; ++i)
             {
-                activeSystems[i].System.Update();
+                activeSystems[i].System.Update(dt);
             }
         }
     }

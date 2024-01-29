@@ -8,11 +8,10 @@ using Engine.Ecs;
 using Engine.Graphics;
 using Cmps;
 using Core;
-using Physics;
 
 namespace Systems
 {
-    public class RenderSystem : Engine.Ecs.System
+    public class RenderSystem : GameSystem
     {
         private EntityManager<Entity> entityManager;
         private SpriteBatch spriteBatch;
@@ -26,7 +25,7 @@ namespace Systems
             this.camera        = camera;
         }
 
-        public override void Update()
+        public override void Update(float _)
         {
             spriteBatch.Begin(camera, sortMode: SpriteSortMode.FrontToBack, 
                 samplerState: SamplerState.PointClamp);
@@ -34,7 +33,6 @@ namespace Systems
             {
                 DebugAssert.Success(sprite.Texture != null, 
                     "Cannot draw sprite with null texture");
-                sprite.Transform.CacheTransform(e);
                 
                 float depth = ((e.Position.Y / float.MaxValue) * 0.5f);// + 0.5f;
                 spriteBatch.Draw(sprite.Texture, sprite.Transform.CachedWorldPosition,

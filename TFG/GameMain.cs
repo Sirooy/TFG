@@ -106,11 +106,7 @@ namespace TFG
             DebugTimer.Start("Draw");
             screen.Attach();
 
-            DebugDraw.Line(new Vector2(0.0f, 0.0f),
-                new Vector2(0.0f, 50.0f), new Color(0, 255, 0));
-            DebugDraw.Line(new Vector2(0.0f, 0.0f),
-                new Vector2(50.0f, 0.0f), Color.Red);
-
+            DrawWorldAxles();
             gameStates.DrawActiveStates(gameTime);
 
             DebugDraw.Draw();
@@ -120,6 +116,15 @@ namespace TFG
             screen.Present(spriteBatch, SamplerState.PointClamp, Color.Green);
 
             base.Draw(gameTime);
+        }
+
+        private void DrawWorldAxles()
+        {
+            DebugDraw.Line(new Vector2(0.0f, 0.0f),
+                new Vector2(0.0f, 50.0f), new Color(0, 255, 0));
+            DebugDraw.Line(new Vector2(0.0f, 0.0f),
+                new Vector2(50.0f, 0.0f), Color.Red);
+            DebugDraw.Point(new Vector2(0.0f, 0.0f), Color.Blue);
         }
 
         private void Graphics_DeviceReset(object sender, EventArgs e)

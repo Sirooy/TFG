@@ -11,6 +11,7 @@ namespace Cmps
         public Rectangle? SourceRect;
         public Vector2 Origin;
         public Color Color;
+        public SpriteEffects Effects;
 
         public SpriteCmp(Texture2D texture, Rectangle? source = null)
         {
@@ -19,6 +20,7 @@ namespace Cmps
             this.SourceRect = source;
             this.Origin     = Vector2.Zero;
             this.Color      = Color.White;
+            this.Effects    = SpriteEffects.None;
         }
     }
 }

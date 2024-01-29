@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Core;
 using Engine.Debug;
@@ -10,9 +13,7 @@ using Cmps;
 using Physics;
 using Systems;
 using TFG;
-using System.Reflection.Metadata;
-using Microsoft.Xna.Framework.Content;
-using Microsoft.Xna.Framework.Input;
+
 
 namespace States
 {
@@ -58,6 +59,7 @@ namespace States
             entityManager.RegisterComponent<PhysicsCmp>();
             entityManager.RegisterComponent<ColliderCmp>();
             entityManager.RegisterComponent<TriggerColliderCmp>();
+            entityManager.RegisterComponent<AnimationControllerCmp>();
         }
 
         private void RegisterUpdateSystems()
@@ -65,12 +67,16 @@ namespace States
             updateSystems.RegisterSystem(new ScriptSystem(entityManager));
             updateSystems.RegisterSystem(new PhysicsSystem(entityManager, 
                 Vector2.Zero, 1.0f / 60.0f));
+            updateSystems.RegisterSystem(new SpriteAnimationSystem(entityManager));
+            updateSystems.RegisterSystem(new PreDrawSystem(entityManager));
 
             PhysicsSystem physiscSystem = updateSystems.GetSystem<PhysicsSystem>();
             physiscSystem.Iterations    = 1;
 
             updateSystems.EnableSystem<ScriptSystem>();
             updateSystems.EnableSystem<PhysicsSystem>();
+            updateSystems.EnableSystem<SpriteAnimationSystem>();
+            updateSystems.EnableSystem<PreDrawSystem>();
         }
 
         private void RegisterDrawSystems()
@@ -109,11 +115,41 @@ namespace States
                     force.Normalize();
                     phy.Force += force * 1000.0f;
                 }
+
+                AnimationControllerCmp animController = 
+                    entityManager.GetComponent<AnimationControllerCmp>(player);
+
+                if(KeyboardInput.IsKeyReleased(Keys.L))
+                {
+                    bool isLooped = (animController.PlayState & AnimationPlayState.Loop) != 0;
+                    animController.SetLooping(!isLooped);
+                }
+
+                if (KeyboardInput.IsKeyReleased(Keys.R))
+                {
+                    bool isReversed = (animController.PlayState & AnimationPlayState.Reverse) != 0;
+                    animController.SetReverse(!isReversed);
+                }
+
+                if(KeyboardInput.IsKeyPressed(Keys.P))
+                {
+                    animController.IsPaused = !animController.IsPaused;
+                }
+
+                if(KeyboardInput.IsKeyPressed(Keys.I))
+                {
+                    animController.PlaySpeedMult += 0.5f;
+                }
+
+                if (KeyboardInput.IsKeyPressed(Keys.K))
+                {
+                    animController.PlaySpeedMult -= 0.5f;
+                }
             }
             //##### #####
 
             cameraController.Update(dt);
-            updateSystems.UpdateSystems();
+            updateSystems.UpdateSystems(dt);
 
             return false;
         }
@@ -121,12 +157,13 @@ namespace States
         public override bool Draw(GameTime gameTime)
         {
             game.GraphicsDevice.Clear(Color.Black);
+            float dt = (float) gameTime.ElapsedGameTime.TotalSeconds;
 
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
             tileMap.DrawPreEntitiesLayer(camera, spriteBatch);
             spriteBatch.End();
 
-            drawSystems.UpdateSystems();
+            drawSystems.UpdateSystems(dt);
 
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
             tileMap.DrawPostEntitiesLayer(camera, spriteBatch);
@@ -144,7 +181,7 @@ namespace States
                 updateSystems.GetSystem<PhysicsSystem>());
 
             playerPlatformTexture = content.Load<Texture2D>("PlayerPlatform");
-            playerTexture         = content.Load<Texture2D>("Player");
+            playerTexture         = content.Load<Texture2D>("PlayerSpriteSheetX2");
 
 
             DebugDraw.Camera = camera;
@@ -170,14 +207,26 @@ namespace States
                 new CircleCollider(16.0f), new Material(1.0f, 0.0f, 0.0f),
                 CollisionBitmask.Player, CollisionBitmask.All));
             SpriteCmp spr2 = entityManager.AddComponent(e, new SpriteCmp(playerTexture));
+            spr2.SourceRect = new Rectangle(0, 0, 48, 40);
             spr2.Transform.LocalPosition = new Vector2(
-                -playerTexture.Width * 0.5f,
+                -spr2.SourceRect.Value.Width * 0.5f,
                 -playerTexture.Height);
 
             SpriteCmp spr1 = entityManager.AddComponent(e, new SpriteCmp(playerPlatformTexture));
             spr1.Transform.LocalPosition = new Vector2(
                 -playerPlatformTexture.Width * 0.5f,
                 -playerPlatformTexture.Height * 0.5f);
+
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimation("Idle", new SpriteAnimation(new List<Rectangle>() 
+            {
+                new Rectangle(0, 0, 48, 40),
+                new Rectangle(48, 0, 48, 40),
+                new Rectangle(96, 0, 48, 40),
+                new Rectangle(144, 0, 48, 40)
+            }, 0.5f));
+            anim.Play("Idle");
 
             if (player == null) player = e;
             else

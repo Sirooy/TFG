@@ -4,7 +4,7 @@ using Cmps;
 
 namespace Systems
 {
-    public class ScriptSystem : Engine.Ecs.System
+    public class ScriptSystem : GameSystem
     {
         private EntityManager<Entity> entityManager;
 
@@ -13,11 +13,11 @@ namespace Systems
             this.entityManager = entityManager;
         }
 
-        public override void Update()
+        public override void Update(float _)
         {
-            entityManager.ForEachComponent<ScriptCmp>((Entity e, ScriptCmp s) =>
+            entityManager.ForEachComponent((Entity e, ScriptCmp script) =>
             {
-                s.Execute(e);
+                script.Execute(e);
             });
         }
     }

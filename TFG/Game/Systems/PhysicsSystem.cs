@@ -11,7 +11,7 @@ using Physics;
 
 namespace Systems
 {
-    public class PhysicsSystem : Engine.Ecs.System
+    public class PhysicsSystem : GameSystem
     {
         public const string DEBUG_DRAW_LAYER = "Physics";
 
@@ -134,7 +134,6 @@ namespace Systems
         private List<TriggerCollisionEventData> triggerStayEvents;
         private List<TriggerCollisionEventData> triggerExitEvents;
         private ResolutionData resolution;
-        private float deltaTime;
         private int iterations;
 
         public List<StaticCollider> StaticColliders { get { return staticColliders; } }
@@ -159,7 +158,6 @@ namespace Systems
             this.resolution = new ResolutionData();
             this.Gravity       = gravity;
             this.iterations    = 1;
-            this.deltaTime     = dt;
         }
 
         #region Static colliders management
@@ -217,13 +215,13 @@ namespace Systems
         }
         #endregion
 
-        public override void Update()
+        public override void Update(float dt)
         {
             DebugTimer.Start("Physics");
             var colCmps        = entityManager.GetComponents<ColliderCmp>();
             var triggerColCmps = entityManager.GetComponents<TriggerColliderCmp>();
 
-            IntegrateEntities();
+            IntegrateEntities(dt);
             UpdateDynamicColliders();
             UpdateTriggerColliders();
             CheckDynamicVsStaticCollisions(colCmps, true);
@@ -249,20 +247,20 @@ namespace Systems
         }
 
         //Implicit euler integration
-        private void IntegrateEntities()
+        private void IntegrateEntities(float dt)
         {
             entityManager.ForEachComponent((Entity e, PhysicsCmp physics) =>
             {
                 //Calculate linear and angular velocities
                 Vector2 force = physics.Force + Gravity * physics.GravityMultiplier;
-                physics.LinearVelocity  += force * physics.InverseMass * deltaTime;
-                physics.AngularVelocity += physics.Torque * physics.InverseIntertia * deltaTime;
+                physics.LinearVelocity  += force * physics.InverseMass * dt;
+                physics.AngularVelocity += physics.Torque * physics.InverseIntertia * dt;
 
                 //Apply damping
                 physics.LinearVelocity  -= physics.LinearVelocity * 
-                    physics.LinearDamping * deltaTime;
+                    physics.LinearDamping * dt;
                 physics.AngularVelocity -= physics.AngularVelocity * 
-                    physics.AngularDamping * deltaTime;
+                    physics.AngularDamping * dt;
 
                 //Clamp the linear velocity before updating the position
                 physics.LinearVelocity.X = Math.Clamp(physics.LinearVelocity.X,
@@ -275,8 +273,8 @@ namespace Systems
                     -physics.MaxAngularVelocity, physics.MaxAngularVelocity);
                 
                 //Update the position and rotation
-                e.Position += physics.LinearVelocity * deltaTime;
-                e.Rotation += physics.AngularVelocity * deltaTime;
+                e.Position += physics.LinearVelocity * dt;
+                e.Rotation += physics.AngularVelocity * dt;
                 e.Rotation  = MathHelper.WrapAngle(e.Rotation);
                 
                 //Reset the forces
