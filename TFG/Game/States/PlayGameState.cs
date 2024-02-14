@@ -26,7 +26,9 @@ namespace States
         private EntityManager<Entity> entityManager;
         private Camera2D camera;
         private CameraController cameraController;
-        private TileMap tileMap;
+        private DungeonLevel level;
+        private EntityFactory entityFactory;
+        private List<Entity> players;
 
         private Texture2D playerTexture;
         private Texture2D playerPlatformTexture;
@@ -40,10 +42,11 @@ namespace States
             this.updateSystems    = new SystemManager();
             this.drawSystems      = new SystemManager();
             this.entityManager    = new EntityManager<Entity>();
+            this.entityFactory    = new EntityFactory(entityManager, game.Content);
             this.camera           = new Camera2D(game.Screen);
             this.cameraController = new CameraController(camera);
-            this.tileMap          = new TileMap();
-
+            this.level            = new DungeonLevel(game.Content);
+            this.players          = new List<Entity>();
             this.camera.RotationAnchor = new Vector2(0.5f, 0.5f);
             this.camera.PositionAnchor = new Vector2(0.5f, 0.5f);
 
@@ -160,13 +163,13 @@ namespace States
             float dt = (float) gameTime.ElapsedGameTime.TotalSeconds;
 
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
-            tileMap.DrawPreEntitiesLayer(camera, spriteBatch);
+            level.TileMap.DrawPreEntitiesLayer(camera, spriteBatch);
             spriteBatch.End();
 
             drawSystems.UpdateSystems(dt);
 
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
-            tileMap.DrawPostEntitiesLayer(camera, spriteBatch);
+            level.TileMap.DrawPostEntitiesLayer(camera, spriteBatch);
             spriteBatch.End();
 
             return false;
@@ -176,12 +179,12 @@ namespace States
         {
             ContentManager content = game.Content;
 
-            tileMap.Load(game.Content.Load<Texture2D>("Dungeon_Tileset"),
-                "../../../Content/levels/Map1.json", 
-                updateSystems.GetSystem<PhysicsSystem>());
+            level.Load("../../../Content/levels/Map1.m",
+                updateSystems.GetSystem<PhysicsSystem>(), 
+                entityFactory);
 
-            playerPlatformTexture = content.Load<Texture2D>("PlayerPlatform");
-            playerTexture         = content.Load<Texture2D>("PlayerSpriteSheetX2");
+            playerPlatformTexture = content.Load<Texture2D>("EntityPlatform");
+            playerTexture         = content.Load<Texture2D>("PlayerSpriteSheet");
 
 
             DebugDraw.Camera = camera;
@@ -202,20 +205,23 @@ namespace States
             e.Position = pos;
             PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
             phy.Inertia = 0.0f;
-            phy.LinearDamping = 1.0f;
+            phy.LinearDamping = 1.5f;
             ColliderCmp col = entityManager.AddComponent(e, new ColliderCmp(
                 new CircleCollider(16.0f), new Material(1.0f, 0.0f, 0.0f),
                 CollisionBitmask.Player, CollisionBitmask.All));
-            SpriteCmp spr2 = entityManager.AddComponent(e, new SpriteCmp(playerTexture));
-            spr2.SourceRect = new Rectangle(0, 0, 48, 40);
-            spr2.Transform.LocalPosition = new Vector2(
-                -spr2.SourceRect.Value.Width * 0.5f,
-                -playerTexture.Height);
+            SpriteCmp playerSpr  = entityManager.AddComponent(e, 
+                new SpriteCmp(playerTexture));
+            playerSpr.SourceRect = new Rectangle(0, 0, 48, 40);
+            playerSpr.LayerOrder = LayerOrder.Ordered;
+            playerSpr.Origin     = new Vector2(
+                playerSpr.SourceRect.Value.Width * 0.5f,
+                playerTexture.Height);
 
-            SpriteCmp spr1 = entityManager.AddComponent(e, new SpriteCmp(playerPlatformTexture));
-            spr1.Transform.LocalPosition = new Vector2(
+            SpriteCmp platformSpr = entityManager.AddComponent(e, new SpriteCmp(playerPlatformTexture));
+            platformSpr.Transform.LocalPosition = new Vector2(
                 -playerPlatformTexture.Width * 0.5f,
                 -playerPlatformTexture.Height * 0.5f);
+            platformSpr.LayerOrder = LayerOrder.AlwaysBottom;
 
             AnimationControllerCmp anim = entityManager.AddComponent(e,
                 new AnimationControllerCmp(0));
@@ -233,9 +239,9 @@ namespace States
             {
                 Color[] colors = new Color[]
                     { Color.Red, Color.Green, Color.Blue, Color.Yellow };
-                Color color = colors[Random.Shared.Next(colors.Length)];
-                spr1.Color = color;
-                spr2.Color = color;
+                Color color       = colors[Random.Shared.Next(colors.Length)];
+                playerSpr.Color   = color;
+                platformSpr.Color = color;
             }
         }
     }

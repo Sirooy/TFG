@@ -29,21 +29,18 @@ namespace Core
             }
         }
 
-        private Tile[,] preEntitiesTiles;
-        private Tile[,] postEntitiesTiles;
-        private int tileSize;
-        private int width;
-        private int height;
+        public Tile[,] PreEntitiesTiles;
+        public Tile[,] PostEntitiesTiles;
+        public int TileSize;
 
         public TileMap()
         {
-            preEntitiesTiles  = null;
-            postEntitiesTiles = null;
-            tileSize          = 0;
-            width             = 0;
-            height            = 0;
+            PreEntitiesTiles  = null;
+            PostEntitiesTiles = null;
+            TileSize          = 0;
         }
 
+        /*
         public void Load(Texture2D tilesetTexture, string path, PhysicsSystem physics)
         {
             string json = File.ReadAllText(path);
@@ -116,112 +113,29 @@ namespace Core
             }
 
             return tiles;
-        }
+        } 
+        */
 
-        private void CreateCollisionLayer(JsonElement layer,
-            int width, int height, PhysicsSystem physics)
+        public Tile GetPreEntitiesTile(Vector2 pos)
         {
-            int[,] tiles = new int[width, height];
-            int index = 0;
-            
-            JsonElement data = layer.GetProperty("data");
-            foreach (JsonElement element in data.EnumerateArray())
-            {
-                int n = element.GetInt32();
-                int x = (index % width);
-                int y = (index / width);
+            int x = (int) (pos.X / TileSize);
+            int y = (int) (pos.Y / TileSize);
 
-                tiles[x, y] = n;
+            if (x < 0 || x > PreEntitiesTiles.GetLength(0) - 1 ||
+               y < 0 || y > PreEntitiesTiles.GetLength(1) - 1)
+                return null;
 
-                ++index;
-            }
-
-            CreateColliders(tiles, width, height, physics);
-        }
-
-        private void CreateColliders(int[,] tiles, int width, int height, 
-            PhysicsSystem physics)
-        {
-            int x = 0;
-            int y = 0;
-
-            while(y < height)
-            {
-                while(x < width)
-                {
-                    int value = tiles[x, y];
-
-                    if(value != 0)
-                        CreateBoxCollider(tiles, width, height, x, y, physics);
-                    
-                    ++x;
-                }
-
-                x = 0;
-                ++y;
-            }
-        }
-
-        private void CreateBoxCollider(int[,] tiles, int width, int height, 
-            int startX, int startY, PhysicsSystem physics)
-        {
-            int endX = startX;
-
-            while (endX < width && tiles[endX, startY] != 0)
-            {
-                tiles[endX, startY] = 0;
-                ++endX;
-            }
-
-            int tileCountX     = endX - startX;
-            int tileDownCountX = tileCountX;
-            int endY           = startY + 1;
-
-            while (endY < height && tileCountX == tileDownCountX)
-            {
-                endX = startX;
-                
-                while(endX < width && tiles[endX, endY] != 0)
-                {
-                    endX++;
-                }
-
-                tileDownCountX = endX - startX;
-
-                if (tileDownCountX == tileCountX)
-                { 
-                    //Fill with zeroes
-                    endX = startX;
-                    while (endX < width && tiles[endX, endY] != 0)
-                    {
-                        tiles[endX, endY] = 0;
-                        endX++;
-                    }
-
-                    ++endY;
-                }
-            }
-
-            int tileCountY = (endY - startY);
-            float blockWidth  = tileCountX * tileSize;
-            float blockHeight = tileCountY * tileSize;
-
-            StaticCollider collider = physics.AddStaticCollider(new RectangleCollider(
-                blockWidth, blockHeight), new Material(1.0f, 0.0f, 0.0f), 
-                CollisionBitmask.Wall, CollisionBitmask.All);
-            collider.Position = new Vector2(
-                startX * tileSize + blockWidth * 0.5f,
-                startY * tileSize + blockHeight * 0.5f);
+            return PreEntitiesTiles[x, y];
         }
 
         public void DrawPreEntitiesLayer(Camera2D camera, SpriteBatch spriteBatch)
         {
-            DrawTiles(preEntitiesTiles, camera, spriteBatch);
+            DrawTiles(PreEntitiesTiles, camera, spriteBatch);
         }
 
         public void DrawPostEntitiesLayer(Camera2D camera, SpriteBatch spriteBatch)
         {
-            DrawTiles(postEntitiesTiles, camera, spriteBatch);
+            DrawTiles(PostEntitiesTiles, camera, spriteBatch);
         }
 
         private void DrawTiles(Tile[,] tiles, Camera2D camera, SpriteBatch spriteBatch)
@@ -234,7 +148,7 @@ namespace Core
                 {
                     Tile t = tiles[i, j];
 
-                    if (t != null && cameraBounds.Contains(t.Position, tileSize, tileSize))
+                    if (t != null && cameraBounds.Contains(t.Position, TileSize, TileSize))
                         spriteBatch.Draw(t.Texture, t.Position, t.Source, Color.White);
                 }
             }

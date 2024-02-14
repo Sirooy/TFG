@@ -10,7 +10,7 @@ namespace Core
     {
         None = 0x00,
         Player = 0x01,
-        Enemy = 0x02
+        Enemy  = 0x02
     }
 
     public class Entity : EntityBase

@@ -51,7 +51,6 @@ namespace TFG
                 DebugLog.Warning("Resize {0}:{1}", Window.ClientBounds.Width, 
                     Window.ClientBounds.Height);
             };
-
         }
 
         protected override void Initialize()
@@ -91,7 +90,7 @@ namespace TFG
 
             if (KeyboardInput.IsKeyPressed(Keys.Escape))
                 Exit();
-
+            
             EnableDisableDebugDraw(); //BORRAR
             gameStates.Update();
             gameStates.UpdateActiveStates(gameTime);

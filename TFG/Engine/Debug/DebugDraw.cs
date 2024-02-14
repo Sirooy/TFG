@@ -662,11 +662,11 @@ namespace Engine.Debug
             else
                 shapeBatch.Begin(Camera);
 
-            DrawLayer(mainLayer);
             foreach (LayerData layer in layers.Values)
             {
                 DrawLayer(layer);
             }
+            DrawLayer(mainLayer);
 
             shapeBatch.End();
         }

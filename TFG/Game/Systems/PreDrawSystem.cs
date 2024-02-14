@@ -18,6 +18,13 @@ namespace Systems
             entityManager.ForEachComponent((Entity e, SpriteCmp s) =>
             {
                 s.Transform.CacheTransform(e);
+
+                if(s.LayerOrder == LayerOrder.Ordered)
+                {
+                    float yPosition = s.Transform.CachedWorldPosition.Y +
+                        s.Origin.Y;
+                    s.LayerDepth = (yPosition / 10000.0f) * 0.5f + 0.5f;
+                }
             });
         }
     }

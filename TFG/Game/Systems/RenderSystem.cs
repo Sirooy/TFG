@@ -34,11 +34,10 @@ namespace Systems
                 DebugAssert.Success(sprite.Texture != null, 
                     "Cannot draw sprite with null texture");
                 
-                float depth = ((e.Position.Y / float.MaxValue) * 0.5f);// + 0.5f;
                 spriteBatch.Draw(sprite.Texture, sprite.Transform.CachedWorldPosition,
                     sprite.SourceRect, sprite.Color, sprite.Transform.CachedWorldRotation,
                     sprite.Origin, sprite.Transform.CachedWorldScale, SpriteEffects.None,
-                    (e.Position.Y / 10000.0f) * 0.5f + 0.5f);
+                    sprite.LayerDepth);
             });
             spriteBatch.End();
 
