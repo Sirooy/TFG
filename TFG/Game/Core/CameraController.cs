@@ -41,13 +41,13 @@ namespace Core
                     MinZoom, MaxZoom);
             }
 
-            if(MouseInput.IsLeftButtonPressed())
+            if(MouseInput.IsMiddleButtonPressed())
             {
                 isDragging             = true;
                 dragStartPosition      = MouseInput.GetPosition();
                 dragCameraBasePosition = camera.Position;
             }
-            else if(MouseInput.IsLeftButtonReleased())
+            else if(MouseInput.IsMiddleButtonReleased())
             {
                 isDragging = false;
             }

@@ -7,6 +7,7 @@ using Systems;
 using Physics;
 using Microsoft.Xna.Framework.Graphics;
 using static Core.TileMap;
+using System;
 
 namespace Core
 {
@@ -17,21 +18,23 @@ namespace Core
         public int NumTilesY  { get; private set; }
         public float Width    { get; private set; }
         public float Height   { get; private set; }
-        public TileMap TileMap { get; private set; }
+        public TileMap TileMap  { get; private set; }
+        public PathFindingMap PathFindingMap { get; private set; }
         public List<Vector2> SpawnPoints { get; private set; }
         public PhysicsSystem Physics { get; set; }
         public ContentManager Content { get; set; }
 
         public DungeonLevel(ContentManager content)
         {
-            TileSize    = 0;
-            NumTilesX   = 0;
-            NumTilesY   = 0;
-            Width       = 0;
-            Height      = 0;
-            TileMap     = new TileMap();
-            SpawnPoints = new List<Vector2>();
-            Content     = content;
+            TileSize       = 0;
+            NumTilesX      = 0;
+            NumTilesY      = 0;
+            Width          = 0;
+            Height         = 0;
+            TileMap        = new TileMap(this);
+            PathFindingMap = new PathFindingMap(this);
+            SpawnPoints    = new List<Vector2>();
+            Content        = content;
         }
 
         public void Load(string path, PhysicsSystem physicsSystem, EntityFactory entityFactory)
@@ -49,7 +52,6 @@ namespace Core
                     NumTilesY = reader.ReadInt32();
 
                     Texture2D tileset         = Content.Load<Texture2D>(reader.ReadString());
-                    TileMap.TileSize          = TileSize;
                     TileMap.PreEntitiesTiles  = ReadTileLayer(reader, tileset);
                     TileMap.PostEntitiesTiles = ReadTileLayer(reader, tileset);
                     ReadCollisionLayer(reader);
@@ -97,6 +99,7 @@ namespace Core
                     tiles[x, y] = reader.ReadByte();
                 }
             }
+            PathFindingMap.Create(tiles);
 
             CreateColliders(tiles);
         }
@@ -126,54 +129,6 @@ namespace Core
                 entityFactory.CreateEnemy(type, new Vector2(x, y));
             }
         }
-
-        /*
-        public void Load(string path)
-        {
-            Physics.StaticColliders.Clear();
-
-            string json = File.ReadAllText(path);
-            using (JsonDocument doc = JsonDocument.Parse(json))
-            {
-                JsonElement root = doc.RootElement;
-                JsonElement layers = root.GetProperty("layers");
-                NumTilesX = root.GetProperty("width").GetInt32();
-                NumTilesY = root.GetProperty("height").GetInt32();
-                TileSize  = root.GetProperty("tilewidth").GetInt32();
-
-                foreach (JsonElement layer in layers.EnumerateArray())
-                {
-                    string name = layer.GetProperty("name").GetString();
-                    switch(name)
-                    {
-                        case "PreEntities": break;
-                        case "PostEntities": break;
-                        case "Collision": CreateCollisionLayer(layer); break;
-                    }
-                }
-            }
-        }
-        
-        private void CreateCollisionLayer(JsonElement layer)
-        {
-            int[,] tiles = new int[NumTilesX, NumTilesY];
-            int index = 0;
-
-            JsonElement data = layer.GetProperty("data");
-            foreach (JsonElement element in data.EnumerateArray())
-            {
-                int n = element.GetInt32();
-                int x = (index % NumTilesX);
-                int y = (index / NumTilesX);
-
-                tiles[x, y] = n;
-
-                ++index;
-            }
-
-            CreateColliders(tiles);
-        }
-        */
 
         private void CreateColliders(byte[,] tiles)
         {

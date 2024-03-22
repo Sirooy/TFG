@@ -28,5 +28,15 @@ namespace Engine.Core
         {
             return new Vector2(-v.X, -v.Y);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 Rotate(this Vector2 v, float angle)
+        {
+            float cos = MathF.Cos(angle);
+            float sin = MathF.Sin(angle);
+
+            return new Vector2(v.X * cos - v.Y * sin,
+                               v.X * sin + v.Y * cos);
+        }
     }
 }

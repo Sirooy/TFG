@@ -29,19 +29,87 @@ namespace Systems
         {
             spriteBatch.Begin(camera, sortMode: SpriteSortMode.FrontToBack, 
                 samplerState: SamplerState.PointClamp);
+            DrawCharacterCmps();
+            DrawSpriteCmps();
+            spriteBatch.End();
+
+            spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
+            DrawHealthCmps();
+            spriteBatch.End();
+
+            
+            DebugDrawEntitiesAxis();
+        }
+
+        private void DrawHealthCmps()
+        {
+            entityManager.ForEachComponent((Entity e, HealthCmp health) =>
+            {
+                const float MAX_WIDTH = 32.0f;
+                const float HEIGHT = 2.0f;
+
+                float t = health.CurrentHealth / health.MaxHealth;
+                Vector2 startPos = e.Position - new Vector2(
+                    MAX_WIDTH * 0.5f, 
+                    HEIGHT * 0.5f - 16.0f);
+
+                spriteBatch.DrawRectangle(startPos, new Vector2(MAX_WIDTH, HEIGHT),
+                    Color.Red);
+                spriteBatch.DrawRectangle(startPos, new Vector2(MAX_WIDTH * t, HEIGHT),
+                    new Color(0.0f, 1.0f, 0.0f));
+            });
+        }
+
+        private void DrawCharacterCmps()
+        {
+            entityManager.ForEachComponent((Entity e, CharacterCmp chara) =>
+            {
+                DebugAssert.Success(chara.PlatformTexture != null,
+                    "Cannot draw character platform with null texture");
+
+                //Draw the circle selection
+                if(chara.SelectState != SelectState.None)
+                {
+                    Vector2 selectPos = new Vector2(
+                        e.Position.X - chara.SelectSourceRect.Width * 0.5f,
+                        e.Position.Y - chara.SelectSourceRect.Height * 0.5f);
+
+                    Color color = Color.White;
+                    switch (chara.SelectState)
+                    {
+                        case SelectState.Selected:
+                            color = new Color(0, 255, 0);
+                            break;
+                        case SelectState.Hover:
+                            color = Color.Yellow;
+                            break;
+                    }
+
+                    spriteBatch.Draw(chara.PlatformTexture, selectPos, 
+                        chara.SelectSourceRect, color);
+                }
+
+                Vector2 platformPos = new Vector2(
+                    e.Position.X - chara.PlatformSourceRect.Width * 0.5f,
+                    e.Position.Y - chara.PlatformSourceRect.Height * 0.5f);
+
+                spriteBatch.Draw(chara.PlatformTexture, platformPos,
+                    chara.PlatformSourceRect, Color.White);
+            });
+        }
+
+        private void DrawSpriteCmps()
+        {
             entityManager.ForEachComponent((Entity e, SpriteCmp sprite) =>
             {
-                DebugAssert.Success(sprite.Texture != null, 
+                DebugAssert.Success(sprite.Texture != null,
                     "Cannot draw sprite with null texture");
-                
+
                 spriteBatch.Draw(sprite.Texture, sprite.Transform.CachedWorldPosition,
                     sprite.SourceRect, sprite.Color, sprite.Transform.CachedWorldRotation,
                     sprite.Origin, sprite.Transform.CachedWorldScale, SpriteEffects.None,
                     sprite.LayerDepth);
             });
-            spriteBatch.End();
-
-            DebugDrawEntitiesAxis();
         }
 
         #region Debug Draw

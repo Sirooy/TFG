@@ -29,100 +29,24 @@ namespace Core
             }
         }
 
+        private DungeonLevel level;
         public Tile[,] PreEntitiesTiles;
         public Tile[,] PostEntitiesTiles;
-        public int TileSize;
 
-        public TileMap()
+        public TileMap(DungeonLevel level)
         {
+            this.level        = level;
             PreEntitiesTiles  = null;
             PostEntitiesTiles = null;
-            TileSize          = 0;
         }
-
-        /*
-        public void Load(Texture2D tilesetTexture, string path, PhysicsSystem physics)
-        {
-            string json = File.ReadAllText(path);
-            
-            using (JsonDocument doc = JsonDocument.Parse(json))
-            {
-                JsonElement root = doc.RootElement;
-                JsonElement layers = root.GetProperty("layers");
-                width    = root.GetProperty("width").GetInt32();
-                height   = root.GetProperty("height").GetInt32();
-                tileSize = root.GetProperty("tilewidth").GetInt32();
-
-                foreach(JsonElement layer in layers.EnumerateArray())
-                {
-                    string name = layer.GetProperty("name").GetString();
-                    if(name == "PreEntities")
-                    {
-                        preEntitiesTiles = CreateTiles(layer, 
-                            tilesetTexture, width, height);
-                    }
-                    else if(name == "PostEntities")
-                    {
-                        postEntitiesTiles = CreateTiles(layer, 
-                            tilesetTexture, width, height);
-                    }
-                    else if(name == "Collision")
-                    {
-                        CreateCollisionLayer(layer,
-                            width, height, physics);
-                    }
-                }
-            }
-
-            Console.WriteLine(width + " " + height + " " + tileSize);
-        }
-
-        private Tile[,] CreateTiles(JsonElement layer, Texture2D tilesetTexture, 
-            int width, int height)
-        {
-            Tile[,] tiles = new Tile[width, height];
-            float startX  = layer.GetProperty("x").GetInt32();
-            float startY  = layer.GetProperty("y").GetInt32();
-            int numTiles  = tilesetTexture.Width / tileSize;
-            int index = 0;
-
-            JsonElement data = layer.GetProperty("data");
-            foreach (JsonElement element in data.EnumerateArray())
-            {
-                int texIndex = element.GetInt32() - 1;
-                if (texIndex == -1)
-                {
-                    ++index;
-                    continue;
-                }
-
-                int x = (index % width);
-                int y = (index / width);
-
-                Point texCoords = new Point(
-                    (texIndex % numTiles) * tileSize, 
-                    (texIndex / numTiles) * tileSize);
-                Vector2 position = new Vector2(
-                    x * tileSize + startX,
-                    y * tileSize + startY);
-
-                tiles[x, y] = new Tile(tilesetTexture, position,
-                    new Rectangle(texCoords, new Point(tileSize, tileSize)));
-
-                ++index;
-            }
-
-            return tiles;
-        } 
-        */
 
         public Tile GetPreEntitiesTile(Vector2 pos)
         {
-            int x = (int) (pos.X / TileSize);
-            int y = (int) (pos.Y / TileSize);
+            int x = (int) (pos.X / level.TileSize);
+            int y = (int) (pos.Y / level.TileSize);
 
-            if (x < 0 || x > PreEntitiesTiles.GetLength(0) - 1 ||
-               y < 0 || y > PreEntitiesTiles.GetLength(1) - 1)
+            if (x < 0 || x > level.NumTilesX - 1 ||
+               y < 0 || y > level.NumTilesY - 1)
                 return null;
 
             return PreEntitiesTiles[x, y];
@@ -148,8 +72,12 @@ namespace Core
                 {
                     Tile t = tiles[i, j];
 
-                    if (t != null && cameraBounds.Contains(t.Position, TileSize, TileSize))
-                        spriteBatch.Draw(t.Texture, t.Position, t.Source, Color.White);
+                    if (t != null && cameraBounds.Contains(t.Position, 
+                        level.TileSize, level.TileSize))
+                    {
+                        spriteBatch.Draw(t.Texture, t.Position, 
+                            t.Source, Color.White);
+                    }
                 }
             }
         }

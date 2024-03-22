@@ -66,6 +66,7 @@ namespace TFG
             DebugTimer.Register("Physics", 120);
             DebugDraw.Init(GraphicsDevice);
             DebugDraw.RegisterLayer(PhysicsSystem.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16);
+            Util.Init(GraphicsDevice);
 
             gameStates.RegisterState(new MainMenuState(this));
             gameStates.RegisterState(new PlayGameState(this));

@@ -134,6 +134,17 @@ namespace Physics
         #endregion Raycast Jump Table
 
         #region Basic Overlaps
+        public static bool PointVsCircle(Vector2 p, Vector2 c, float r)
+        {
+            return Vector2.DistanceSquared(p, c) <= r * r;
+        }
+
+        public static bool PointVsAABB(Vector2 p, in AABB a)
+        {
+            return p.X > a.Left && p.X < a.Right &&
+                p.Y > a.Top && p.Y < a.Bottom;
+        }
+
         public static bool AABBVsAABB(in AABB a1, in AABB a2)
         {
             return a1.Right > a2.Left && a1.Left < a2.Right &&

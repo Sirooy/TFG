@@ -36,5 +36,10 @@ namespace Core
         {
             Tags &= (~tags);
         }
+
+        public bool HasTag(EntityTags tags)
+        {
+            return (Tags & tags) == tags; 
+        }
     }
 }
