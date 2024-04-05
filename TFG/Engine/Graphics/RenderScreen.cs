@@ -27,6 +27,7 @@ namespace Engine.Graphics
         public int Height { get { return height; } }
         public int HalfWidth { get { return halfWidth; } }
         public int HalfHeight { get { return halfHeight; } }
+        public Vector2 Size { get { return new Vector2(width, height); } }
 
         public RenderScreen(GraphicsDevice graphicsDevice, int width, int height) 
         {

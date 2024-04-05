@@ -10,12 +10,22 @@ using Engine.Debug;
 
 namespace Engine.Core
 {
+    public enum StateResult
+    {
+        StopExecuting,
+        KeepExecuting
+    }
+
     public class GameState
     {
-        public virtual void OnEnter()                 { }
-        public virtual void OnExit()                  { }
-        public virtual bool Update(GameTime gameTime) { return true; }
-        public virtual bool Draw(GameTime gameTime)   { return true; }
+        public virtual void OnEnter()
+            { }
+        public virtual void OnExit()
+            { }
+        public virtual StateResult Update(GameTime gameTime) 
+            { return StateResult.KeepExecuting; }
+        public virtual StateResult Draw(GameTime gameTime) 
+            { return StateResult.KeepExecuting; }
     };
 
     public class GameStateStack
@@ -143,24 +153,24 @@ namespace Engine.Core
 
         public void UpdateActiveStates(GameTime gameTime)
         {
-            int i     = activeStates.Count - 1;
-            bool next = true;
+            int i              = activeStates.Count - 1;
+            StateResult result = StateResult.KeepExecuting;
 
-            while(i > -1 && next)
+            while(i > -1 && result == StateResult.KeepExecuting)
             {
-                next = activeStates[i].State.Update(gameTime);
+                result = activeStates[i].State.Update(gameTime);
                 i--;
             }
         }
 
         public void DrawActiveStates(GameTime gameTime)
         {
-            int i     = activeStates.Count - 1;
-            bool next = true;
+            int i              = activeStates.Count - 1;
+            StateResult result = StateResult.KeepExecuting;
 
-            while(i > -1 && next)
+            while(i > -1 && result == StateResult.KeepExecuting)
             {
-                next = activeStates[i].State.Draw(gameTime);
+                result = activeStates[i].State.Draw(gameTime);
                 i--;
             }
         }

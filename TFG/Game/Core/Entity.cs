@@ -8,9 +8,10 @@ namespace Core
     [Flags]
     public enum EntityTags
     {
-        None = 0x00,
+        None   = 0x00,
         Player = 0x01,
-        Enemy  = 0x02
+        Enemy  = 0x02,
+        Attack = 0x04
     }
 
     public class Entity : EntityBase

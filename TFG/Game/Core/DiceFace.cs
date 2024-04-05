@@ -3,8 +3,9 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Ecs;
 using Engine.Core;
-using Cmps;
 using Engine.Graphics;
+using Cmps;
+using Physics;
 
 namespace Core
 {
@@ -13,9 +14,9 @@ namespace Core
         public Rectangle SourceRect;
         public DiceFace() { }
 
-        //Returns if the action has finished
+        //Returns true if the action has finished
         public virtual bool Update(float dt, EntityManager<Entity> entityManager,
-            Camera2D camera, Entity target) { return true; }
+            EntityFactory entityFactory, Camera2D camera, Entity target) { return true; }
         public virtual void Draw(SpriteBatch spriteBatch, 
             Entity target) { }
     }
@@ -39,8 +40,8 @@ namespace Core
             SourceRect       = new Rectangle(32 + power * 32, 0, 32, 32);
         }
 
-        public override bool Update(float dt, EntityManager<Entity> entityManager, 
-            Camera2D camera, Entity target)
+        public override bool Update(float dt, EntityManager<Entity> entityManager,
+            EntityFactory entityFactory, Camera2D camera, Entity target)
         {
             currentTime += dt;
             if (currentTime >= MathUtil.PI2)
@@ -73,7 +74,7 @@ namespace Core
 
     public class ProjectileDiceFace : DiceFace
     {
-        public const float DISTANCE = 32.0f;
+        public const float DISTANCE = 48.0f;
 
         private float maxAngle;
         private float currentTime;
@@ -81,28 +82,40 @@ namespace Core
 
         public ProjectileDiceFace()
         {
-            maxAngle = MathHelper.ToRadians(25.0f);
+            maxAngle = MathHelper.ToRadians(35.0f);
             currentTime = 0.0f;
             currentDirection = Vector2.Zero;
             SourceRect = new Rectangle(8 * 32, 0, 32, 32);
         }
 
         public override bool Update(float dt, EntityManager<Entity> entityManager,
-            Camera2D camera, Entity target)
+            EntityFactory entityFactory, Camera2D camera, Entity target)
         {
             currentTime += dt;
             if (currentTime >= MathUtil.PI2)
                 currentTime -= MathUtil.PI2;
 
-            float currentAngle = MathF.Sin(currentTime) * maxAngle;
+            float currentAngle = MathF.Sin(currentTime * 2.0f) * maxAngle;
             Vector2 baseDirection = Vector2.Normalize(target.Position -
                 MouseInput.GetPosition(camera));
             currentDirection = MathUtil.Rotate(baseDirection, currentAngle);
 
             if (MouseInput.IsLeftButtonPressed())
             {
-                
+                Vector2 position = target.Position + currentDirection * 8.0f;
+                Entity projectile = entityFactory.CreateAttack(
+                    AttackType.Projectile1, position);
+                projectile.Rotation = MathF.Atan2(
+                    currentDirection.Y, currentDirection.X);
 
+                TriggerColliderCmp colCmp = entityManager.GetComponent
+                    <TriggerColliderCmp>(projectile);
+                colCmp.AddCollisionMask(CollisionBitmask.Enemy);
+
+                PhysicsCmp physicsCmp = entityManager.GetComponent
+                    <PhysicsCmp>(projectile);
+                physicsCmp.LinearVelocity = currentDirection * 200.0f;
+                
                 return true;
             }
 

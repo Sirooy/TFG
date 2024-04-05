@@ -36,7 +36,6 @@ namespace Systems
             spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
             DrawHealthCmps();
             spriteBatch.End();
-
             
             DebugDrawEntitiesAxis();
         }
@@ -47,12 +46,23 @@ namespace Systems
             {
                 const float MAX_WIDTH = 32.0f;
                 const float HEIGHT = 2.0f;
+                const float MARGIN = 4.0f;
+
+                Vector2 startPos = Vector2.Zero; 
+                if (entityManager.TryGetComponent(e, out SpriteCmp sprite))
+                {
+                    
+                    startPos = new Vector2(
+                        e.Position.X - MAX_WIDTH * 0.5f,
+                        sprite.Transform.CachedWorldPosition.Y - sprite.Origin.Y - MARGIN);
+                }
+                else
+                {
+                    startPos = e.Position - new Vector2(
+                        MAX_WIDTH * 0.5f, HEIGHT * 0.5f);
+                }
 
                 float t = health.CurrentHealth / health.MaxHealth;
-                Vector2 startPos = e.Position - new Vector2(
-                    MAX_WIDTH * 0.5f, 
-                    HEIGHT * 0.5f - 16.0f);
-
                 spriteBatch.DrawRectangle(startPos, new Vector2(MAX_WIDTH, HEIGHT),
                     Color.Red);
                 spriteBatch.DrawRectangle(startPos, new Vector2(MAX_WIDTH * t, HEIGHT),

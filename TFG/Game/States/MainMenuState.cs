@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Graphics;
 using TFG;
+using UI;
 
 namespace States
 {
@@ -15,15 +16,61 @@ namespace States
         private SpriteBatch spriteBatch;
         private GameStateStack gameStates;
 
+        private UIContext ui;
+        private UIElement rect;
+        private UIString text;
+
         public MainMenuState(GameMain game) 
         {
             this.game        = game;
             this.spriteBatch = game.SpriteBatch;
             this.gameStates  = game.GameStates;
+
+            this.ui = new UIContext(game.Screen);
+
+            Constraints constraints1 = new Constraints(   
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new PercentConstraint(0.5f),
+                new PercentConstraint(0.5f));
+             rect = new UIRectangle(
+                constraints1, 
+                Color.Red);
+
+            Constraints constraints2 = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(1.0f));
+
+            UIImage image = new UIImage(
+                constraints2,
+                game.Content.Load<Texture2D>("DiceFaceSpriteSheet"),
+                new Rectangle(32, 0, 64, 32));
+
+            UIRectangle rect2 = new UIRectangle(
+                constraints2,
+                Color.Honeydew);
+            rect.AddElement(image);
+
+            Constraints textConstraints = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(1.0f));
+            text = new UIString(
+                textConstraints,
+                game.Content.Load<SpriteFont>("DebugFont"),
+                "This is a Text", Color.Green);
+            //rect2.AddElement(text);
+
+            this.ui.AddElement(rect);
         }
 
-        public override bool Update(GameTime gameTime)
+        public override StateResult Update(GameTime gameTime)
         {
+            float dt = (float) gameTime.ElapsedGameTime.TotalSeconds;
+
             if(KeyboardInput.IsKeyPressed(Keys.Enter) ||
                 KeyboardInput.IsKeyPressed(Keys.Space))
             {
@@ -31,14 +78,25 @@ namespace States
                 gameStates.PushState<PlayGameState>();
             }
 
-            return false;
+            this.ui.Update();
+            if (KeyboardInput.IsKeyDown(Keys.Right))
+                rect.Position += new Vector2(50.0f * dt, 0.0f);
+            if (KeyboardInput.IsKeyDown(Keys.Left))
+                rect.Position -= new Vector2(50.0f * dt, 0.0f);
+
+
+            return StateResult.KeepExecuting;
         }
 
-        public override bool Draw(GameTime gameTime)
+        public override StateResult Draw(GameTime gameTime)
         {
             game.GraphicsDevice.Clear(Color.Blue);
 
-            return false;
+            spriteBatch.Begin(samplerState: SamplerState.PointWrap);
+            ui.Draw(spriteBatch);
+            spriteBatch.End();
+
+            return StateResult.KeepExecuting;
         }
 
         public override void OnEnter()

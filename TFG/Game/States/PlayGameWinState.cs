@@ -1,0 +1,49 @@
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
+using Engine.Core;
+using Engine.Debug;
+
+namespace States
+{
+    public class PlayGameWinState : GameState
+    {
+        private GameMain game;
+        private PlayGameState parentState;
+
+        public PlayGameWinState(GameMain game, PlayGameState parentState)
+        {
+            this.game = game;
+            this.parentState = parentState;
+        }
+
+        public override StateResult Update(GameTime gameTime)
+        {
+            if (KeyboardInput.IsKeyPressed(Keys.Enter) ||
+                KeyboardInput.IsKeyPressed(Keys.Space))
+            {
+                game.GameStates.PopAllActiveStates();
+                game.GameStates.PushState<MainMenuState>();
+            }
+
+            return StateResult.StopExecuting;
+        }
+
+        public override StateResult Draw(GameTime gameTime)
+        {
+            game.GraphicsDevice.Clear(Color.Green);
+
+            return StateResult.KeepExecuting;
+        }
+
+        public override void OnEnter()
+        {
+            DebugDraw.Camera = null;
+            DebugLog.Info("OnEnter state: {0}", nameof(PlayGameLoseState));
+        }
+
+        public override void OnExit()
+        {
+            DebugLog.Info("OnExit state: {0}", nameof(PlayGameLoseState));
+        }
+    }
+}
