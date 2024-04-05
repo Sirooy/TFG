@@ -40,8 +40,8 @@ namespace States
             Constraints constraints2 = new Constraints(
                 new CenterConstraint(),
                 new CenterConstraint(),
-                new AspectConstraint(1.0f),
-                new PercentConstraint(1.0f));
+                new PercentConstraint(1.0f),
+                new PercentConstraint(0.2f));
 
             UIImage image = new UIImage(
                 constraints2,
@@ -51,18 +51,19 @@ namespace States
             UIRectangle rect2 = new UIRectangle(
                 constraints2,
                 Color.Honeydew);
-            rect.AddElement(image);
+            rect.AddElement(rect2);
 
             Constraints textConstraints = new Constraints(
                 new CenterConstraint(),
                 new CenterConstraint(),
                 new AspectConstraint(1.0f),
-                new PercentConstraint(1.0f));
+                new PercentConstraint(1.0f)
+                );
             text = new UIString(
                 textConstraints,
                 game.Content.Load<SpriteFont>("DebugFont"),
                 "This is a Text", Color.Green);
-            //rect2.AddElement(text);
+            rect2.AddElement(text);
 
             this.ui.AddElement(rect);
         }
@@ -84,6 +85,8 @@ namespace States
             if (KeyboardInput.IsKeyDown(Keys.Left))
                 rect.Position -= new Vector2(50.0f * dt, 0.0f);
 
+            if (KeyboardInput.IsKeyPressed(Keys.K))
+                text.Text = text.Text + "_";
 
             return StateResult.KeepExecuting;
         }

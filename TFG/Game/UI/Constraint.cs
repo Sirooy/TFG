@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Xna.Framework;
 
 namespace UI
 {
@@ -136,20 +132,26 @@ namespace UI
 
         float ISizeConstraint.GetXValue(UIElement element)
         {
+            Vector2 baseSize = element.BaseSize;
+
             float height = element.Size.Y;
             if (element.HeightConstraint != null)
                 height = element.HeightConstraint.GetYValue(element);
 
-            return height * aspectRatio;
+            float ratio = height / baseSize.Y;
+            return baseSize.X * ratio * aspectRatio;
         }
 
         float ISizeConstraint.GetYValue(UIElement element)
         {
+            Vector2 baseSize = element.BaseSize;
+
             float width = element.Size.X;
             if (element.WidthConstraint != null)
                 width = element.WidthConstraint.GetXValue(element);
 
-            return width * aspectRatio;
+            float ratio = width / baseSize.X;
+            return baseSize.Y * ratio * aspectRatio;
         }
     }
 }

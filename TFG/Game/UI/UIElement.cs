@@ -36,6 +36,7 @@ namespace UI
                 UpdateChildrenConstraints();
             }
         }
+
         public virtual Vector2 Size 
         { 
             get { return size;  } 
@@ -45,6 +46,11 @@ namespace UI
 
                 UpdateChildrenConstraints();
             }
+        }
+
+        public virtual Vector2 BaseSize
+        {
+            get { return Vector2.One; }
         }
 
         public UIElement(Constraints constraints)
@@ -127,6 +133,11 @@ namespace UI
             set { } 
         }
 
+        public override Vector2 BaseSize
+        {
+            get { return screen.Size; }
+        }
+
         public UIContext(RenderScreen screen) : base(null)
         {
             this.screen   = screen;
@@ -163,7 +174,7 @@ namespace UI
             set 
             { 
                 source = value;
-                RecalculateScale();
+                UpdateConstraints();
             }
         }
 
@@ -173,8 +184,13 @@ namespace UI
             set
             {
                 base.Size = value;
-                RecalculateScale();
+                UpdateConstraints();
             }
+        }
+
+        public override Vector2 BaseSize
+        {
+            get { return new Vector2(source.Width, source.Height); }
         }
 
         public UIImage(Constraints constraints, Texture2D texture, Rectangle source) : 
@@ -207,6 +223,7 @@ namespace UI
     public class UIString : UIElement
     {
         private SpriteFont font;
+        private Vector2 textSize;
         private Vector2 scale;
         private string text;
 
@@ -217,7 +234,6 @@ namespace UI
             {
                 text = value;
                 UpdateConstraints();
-                RecalculateScale();
             }
         }
 
@@ -228,7 +244,6 @@ namespace UI
             {
                 font = value;
                 UpdateConstraints();
-                RecalculateScale();
             }
         }
 
@@ -242,18 +257,24 @@ namespace UI
             }
         }
 
+        public override Vector2 BaseSize
+        {
+            get { return textSize; }
+        }
+
         public UIString(Constraints constraints, SpriteFont font, string text, Color color) : 
             base(constraints)
         {
-            this.font  = font;
-            this.text  = text;
-            this.scale = Vector2.One;
-            this.Color = color;
+            this.font     = font;
+            this.text     = text;
+            this.scale    = Vector2.One;
+            this.Color    = color;
+            this.textSize = font.MeasureString(text);
         }
 
         private void RecalculateScale()
         {
-            Vector2 textSize = font.MeasureString(text);
+            textSize = font.MeasureString(text);
 
             scale.X = (textSize.X != 0) ? size.X / textSize.X : 0.0f;
             scale.Y = (textSize.Y != 0) ? size.Y / textSize.Y : 0.0f;
