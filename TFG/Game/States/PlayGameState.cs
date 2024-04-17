@@ -19,9 +19,26 @@ namespace States
 {
     public class PlayGameState : GameState
     {
+        public class PlayerGameData
+        {
+            public List<Dice> Dices;
+            public List<DiceFace> DiceRolls;
+            public int MaxRolls;
+            public int NumRollsLeft;
+
+            public PlayerGameData()
+            {
+                Dices        = new List<Dice>();
+                DiceRolls    = new List<DiceFace>();
+                MaxRolls     = 4;
+                NumRollsLeft = MaxRolls;
+            }
+        }
+
         private GameMain game;
         private Camera2D camera;
         private GameStateStack gameStates;
+        private PlayerGameData playerData;
         private EntityFactory entityFactory;
         private EntityManager<Entity> entityManager;
         private List<string> levels;
@@ -29,11 +46,13 @@ namespace States
         public Camera2D Camera                     { get { return camera; } }
         public GameStateStack GameStates           { get { return gameStates; } }
         public EntityManager<Entity> EntityManager { get { return entityManager; } }
+        public PlayerGameData PlayerData           { get { return playerData; } }
 
         public PlayGameState(GameMain game)
         {
             this.game                  = game;
             this.gameStates            = new GameStateStack();
+            this.playerData            = new PlayerGameData();
             this.entityManager         = new EntityManager<Entity>();
             this.entityFactory         = new EntityFactory(entityManager, game.Content);
             this.levels                = new List<string>();

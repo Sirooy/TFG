@@ -63,7 +63,7 @@ namespace Engine.Debug
         }
 
         [Conditional(DEFINE)]
-        public static void Draw(SpriteBatch spriteBatch, SpriteFont font)
+        public static void Draw(SpriteBatch spriteBatch, SpriteFont font, float scale = 0.5f)
         {
             Vector2 position = Vector2.Zero;
 
@@ -73,10 +73,11 @@ namespace Engine.Debug
                 if (!timer.IsActive) continue;
                 timer.IsActive = false;
 
-                Vector2 stringSize = font.MeasureString(timer.LastAverageTime);
+                Vector2 stringSize = font.MeasureString(timer.LastAverageTime) * scale;
 
                 spriteBatch.DrawString(font, timer.LastAverageTime,
-                    position, Color.White);
+                    position, Color.White, 0.0f, Vector2.Zero, scale, 
+                    SpriteEffects.None, 0.0f);
 
                 position.Y += stringSize.Y;
 

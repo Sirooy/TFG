@@ -174,16 +174,18 @@ namespace Engine.Debug
             public float Depth;
             public int   CirclePoints;
             public bool IsEnabled;
+            public bool AffectedByCamera;
             public List<DrawCommand> Commands;
 
             public LayerData()
             {
-                PointSize     = 4.0f;
-                LineThickness = 2.0f;
-                Depth         = 0.0f;
-                CirclePoints  = 16;
-                IsEnabled     = true;
-                Commands      = new List<DrawCommand>();
+                PointSize        = 4.0f;
+                LineThickness    = 2.0f;
+                Depth            = 0.0f;
+                CirclePoints     = 16;
+                IsEnabled        = true;
+                AffectedByCamera = true;
+                Commands         = new List<DrawCommand>();
             }
         };
 
@@ -203,7 +205,8 @@ namespace Engine.Debug
 
         [Conditional(DEBUG_DEFINE)]
         public static void RegisterLayer(string layerName, float? pointSize = null, 
-            float? lineThickness = null, int? circlePoints = null, float? layerDepth = null)
+            float? lineThickness = null, int? circlePoints = null, 
+            bool? affectedByCamera = null, float? layerDepth = null)
         {
             DebugAssert.Success(!layers.ContainsKey(layerName),
                 "Cannot register layer with name {0}." +
@@ -212,7 +215,8 @@ namespace Engine.Debug
             LayerData layer = new LayerData();
             layers.Add(layerName, layer);
 
-            SetLayerData(layerName, pointSize, lineThickness, circlePoints, layerDepth);
+            SetLayerData(layerName, pointSize, lineThickness, 
+                circlePoints, affectedByCamera, layerDepth);
         }
 
         [Conditional(DEBUG_DEFINE)]
@@ -244,23 +248,27 @@ namespace Engine.Debug
 
         [Conditional(DEBUG_DEFINE)]
         public static void SetMainLayerData(float? pointSize = null,
-            float? lineThickness = null, int? circlePoints = null, float? layerDepth = null)
+            float? lineThickness = null, int? circlePoints = null, 
+            bool? affectedByCamera = null, float? layerDepth = null)
         {
-            if (pointSize.HasValue)     mainLayer.PointSize     = pointSize.Value;
-            if (layerDepth.HasValue)    mainLayer.Depth         = layerDepth.Value;
-            if (circlePoints.HasValue)  mainLayer.CirclePoints  = circlePoints.Value;
-            if (lineThickness.HasValue) mainLayer.LineThickness = lineThickness.Value;
+            if (pointSize.HasValue)        mainLayer.PointSize        = pointSize.Value;
+            if (layerDepth.HasValue)       mainLayer.Depth            = layerDepth.Value;
+            if (circlePoints.HasValue)     mainLayer.CirclePoints     = circlePoints.Value;
+            if (lineThickness.HasValue)    mainLayer.LineThickness    = lineThickness.Value;
+            if (affectedByCamera.HasValue) mainLayer.AffectedByCamera = affectedByCamera.Value;
         }
 
         [Conditional(DEBUG_DEFINE)]
         public static void SetLayerData(string layerName, float? pointSize = null, 
-            float? lineThickness = null, int? circlePoints = null, float? layerDepth = null)
+            float? lineThickness = null, int? circlePoints = null, 
+            bool? affectedByCamera = null, float? layerDepth = null)
         {
             LayerData layer = GetLayer(layerName);
-            if (pointSize.HasValue)     layer.PointSize     = pointSize.Value;
-            if (layerDepth.HasValue)    layer.Depth         = layerDepth.Value;
-            if (circlePoints.HasValue)  layer.CirclePoints  = circlePoints.Value;
-            if (lineThickness.HasValue) layer.LineThickness = lineThickness.Value;
+            if (pointSize.HasValue)        layer.PointSize        = pointSize.Value;
+            if (layerDepth.HasValue)       layer.Depth            = layerDepth.Value;
+            if (circlePoints.HasValue)     layer.CirclePoints     = circlePoints.Value;
+            if (lineThickness.HasValue)    layer.LineThickness    = lineThickness.Value;
+            if (affectedByCamera.HasValue) layer.AffectedByCamera = affectedByCamera.Value;
         }
 
         #region Point
@@ -658,17 +666,36 @@ namespace Engine.Debug
         public static void Draw()
         {
             if (Camera == null)
-                shapeBatch.Begin();
-            else
-                shapeBatch.Begin(Camera);
-
-            foreach (LayerData layer in layers.Values)
             {
-                DrawLayer(layer);
+                shapeBatch.Begin();
+                foreach (LayerData layer in layers.Values)
+                {
+                    DrawLayer(layer);
+                }
+                shapeBatch.End();
             }
-            DrawLayer(mainLayer);
+            else
+            {
+                //Draw layers affected by the camera
+                shapeBatch.Begin(Camera);
+                foreach (LayerData layer in layers.Values)
+                {
+                    if(layer.AffectedByCamera)
+                        DrawLayer(layer);
+                }            
+                if(mainLayer.AffectedByCamera) DrawLayer(mainLayer);
+                shapeBatch.End();
 
-            shapeBatch.End();
+                //Draw layers that arent affected by the camera
+                shapeBatch.Begin();
+                foreach (LayerData layer in layers.Values)
+                {
+                    if (!layer.AffectedByCamera)
+                        DrawLayer(layer);
+                }
+                if (!mainLayer.AffectedByCamera) DrawLayer(mainLayer);
+                shapeBatch.End();
+            }
         }
 
         private static void DrawLayer(LayerData layer)

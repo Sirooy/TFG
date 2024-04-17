@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Input;
 using Engine.Core;
 using Engine.Debug;
+using System;
 
 namespace States
 {
@@ -12,7 +13,7 @@ namespace States
 
         public PlayGameWinState(GameMain game, PlayGameState parentState)
         {
-            this.game = game;
+            this.game        = game;
             this.parentState = parentState;
         }
 
@@ -37,6 +38,8 @@ namespace States
 
         public override void OnEnter()
         {
+            parentState.EntityManager.Clear();
+
             DebugDraw.Camera = null;
             DebugLog.Info("OnEnter state: {0}", nameof(PlayGameLoseState));
         }

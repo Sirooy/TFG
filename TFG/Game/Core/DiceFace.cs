@@ -4,19 +4,26 @@ using Microsoft.Xna.Framework.Graphics;
 using Engine.Ecs;
 using Engine.Core;
 using Engine.Graphics;
+using AI;
 using Cmps;
 using Physics;
 
 namespace Core
 {
-    public class DiceFace
+    public abstract class DiceFace
     {
-        public Rectangle SourceRect;
-        public DiceFace() { }
+        private Rectangle sourceRect;
 
-        //Returns true if the action has finished
-        public virtual bool Update(float dt, EntityManager<Entity> entityManager,
-            EntityFactory entityFactory, Camera2D camera, Entity target) { return true; }
+        public Rectangle SourceRect { get { return sourceRect; } }
+
+        public DiceFace(Rectangle sourceRect) 
+        {
+            this.sourceRect = sourceRect;
+        }
+
+        public virtual SkillState Update(float dt, EntityManager<Entity> entityManager,
+            EntityFactory entityFactory, Camera2D camera, Entity target) 
+            { return SkillState.Finished; }
         public virtual void Draw(SpriteBatch spriteBatch, 
             Entity target) { }
     }
@@ -31,16 +38,15 @@ namespace Core
         private float currentTime;
         private Vector2 currentDirection;
 
-        public DashDiceFace(int power)
+        public DashDiceFace(int power) : base(new Rectangle(32 + power * 32, 0, 32, 32))
         {
             Power            = power;
             maxAngle         = MathHelper.ToRadians(15.0f);
             currentTime      = 0.0f;
             currentDirection = Vector2.Zero;
-            SourceRect       = new Rectangle(32 + power * 32, 0, 32, 32);
         }
 
-        public override bool Update(float dt, EntityManager<Entity> entityManager,
+        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
             EntityFactory entityFactory, Camera2D camera, Entity target)
         {
             currentTime += dt;
@@ -58,17 +64,17 @@ namespace Core
                 phy.LinearVelocity += Power * DISTANCE * 
                     phy.LinearDamping * currentDirection;
 
-                return true;
+                return SkillState.Finished;
             }
 
-            return false;
+            return SkillState.Executing;
         }
 
         public override void Draw(SpriteBatch spriteBatch, Entity target) 
         {
             Vector2 start = target.Position;
             Vector2 end   = target.Position + currentDirection * Power * DISTANCE;
-            spriteBatch.DrawArrow(start, end, new Color(255, 255, 255, 64), 6.0f);
+            spriteBatch.DrawArrow(start, end, 0.5f, new Color(255, 255, 255, 64));
         }
     }
 
@@ -80,15 +86,14 @@ namespace Core
         private float currentTime;
         private Vector2 currentDirection;
 
-        public ProjectileDiceFace()
+        public ProjectileDiceFace() : base(new Rectangle(8 * 32, 0, 32, 32))
         {
-            maxAngle = MathHelper.ToRadians(35.0f);
-            currentTime = 0.0f;
+            maxAngle         = MathHelper.ToRadians(35.0f);
+            currentTime      = 0.0f;
             currentDirection = Vector2.Zero;
-            SourceRect = new Rectangle(8 * 32, 0, 32, 32);
         }
 
-        public override bool Update(float dt, EntityManager<Entity> entityManager,
+        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
             EntityFactory entityFactory, Camera2D camera, Entity target)
         {
             currentTime += dt;
@@ -116,17 +121,34 @@ namespace Core
                     <PhysicsCmp>(projectile);
                 physicsCmp.LinearVelocity = currentDirection * 200.0f;
                 
-                return true;
+                return SkillState.Finished;
             }
 
-            return false;
+            return SkillState.Executing;
         }
 
         public override void Draw(SpriteBatch spriteBatch, Entity target)
         {
             Vector2 start = target.Position;
             Vector2 end = target.Position + currentDirection * DISTANCE;
-            spriteBatch.DrawArrow(start, end, new Color(255, 255, 255, 64), 6.0f);
+            spriteBatch.DrawArrow(start, end, 0.5f, 
+                new Color(255, 255, 255, 64));
+        }
+    }
+
+    //DEBUG DICE FACES
+    public class KillEntityDiceFace : DiceFace
+    {
+        public KillEntityDiceFace() : base(new Rectangle(32, 0, 32, 32))
+            { }
+
+        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
+            EntityFactory entityFactory, Camera2D camera, Entity target)
+        { 
+            if(entityManager.TryGetComponent(target, out HealthCmp health))
+                health.CurrentHealth = 0.0f;
+
+            return SkillState.Finished;
         }
     }
 }

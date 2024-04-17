@@ -50,6 +50,8 @@ namespace Core
                     TileSize  = reader.ReadInt32();
                     NumTilesX = reader.ReadInt32();
                     NumTilesY = reader.ReadInt32();
+                    Width     = NumTilesX * TileSize;
+                    Height    = NumTilesY * TileSize;
 
                     Texture2D tileset         = Content.Load<Texture2D>(reader.ReadString());
                     TileMap.PreEntitiesTiles  = ReadTileLayer(reader, tileset);

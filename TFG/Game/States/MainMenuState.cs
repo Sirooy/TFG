@@ -1,11 +1,9 @@
 ﻿using System;
-using Engine.Core;
-using Engine.Debug;
-using Engine.Graphics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Graphics;
-using TFG;
+using Engine.Core;
+using Engine.Debug;
 using UI;
 
 namespace States
@@ -17,8 +15,6 @@ namespace States
         private GameStateStack gameStates;
 
         private UIContext ui;
-        private UIElement rect;
-        private UIString text;
 
         public MainMenuState(GameMain game) 
         {
@@ -26,67 +22,104 @@ namespace States
             this.spriteBatch = game.SpriteBatch;
             this.gameStates  = game.GameStates;
 
-            this.ui = new UIContext(game.Screen);
+            CreateUI();
+        }
 
-            Constraints constraints1 = new Constraints(   
-                new CenterConstraint(),
-                new CenterConstraint(),
-                new PercentConstraint(0.5f),
-                new PercentConstraint(0.5f));
-             rect = new UIRectangle(
-                constraints1, 
-                Color.Red);
+        private void CreateUI()
+        {
+            Texture2D uiTexture = game.Content.Load<Texture2D>("UI");
+            SpriteFont uiFont   = game.Content.Load<SpriteFont>("MainFont");
 
-            Constraints constraints2 = new Constraints(
+            ui = new UIContext(game.Screen);
+
+            Constraints titleConstraints = new Constraints(
+                new CenterConstraint(),
+                new PercentConstraint(0.1f),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(0.15f));
+            UIString titleString = new UIString(ui, titleConstraints,
+                uiFont, "Titulo", Color.White);
+            ui.AddElement(titleString);
+
+            Constraints layoutConstraints = new Constraints(
+                new CenterConstraint(),
+                new PercentConstraint(0.3f),
+                new PercentConstraint(0.4f),
+                new PercentConstraint(0.6f));
+            UILayout buttonsLayout = new UILayout(ui, layoutConstraints,
+                UILayout.LayoutType.Vertical, new PercentConstraint(0.05f));
+            ui.AddElement(buttonsLayout);
+
+            Constraints buttonConstraints = new Constraints(
                 new CenterConstraint(),
                 new CenterConstraint(),
                 new PercentConstraint(1.0f),
-                new PercentConstraint(0.2f));
+                new AspectConstraint(1.0f));
 
-            UIImage image = new UIImage(
-                constraints2,
-                game.Content.Load<Texture2D>("DiceFaceSpriteSheet"),
-                new Rectangle(32, 0, 64, 32));
+            UIImage b1 = new UIImage(ui, buttonConstraints, 
+                uiTexture, new Rectangle(0, 0, 128, 32));
+            UIImage b2 = new UIImage(ui, buttonConstraints,
+                uiTexture, new Rectangle(0, 0, 128, 32));
+            UIImage b3 = new UIImage(ui, buttonConstraints,
+                uiTexture, new Rectangle(0, 0, 128, 32));
+            buttonsLayout.AddElement(b1);
+            buttonsLayout.AddElement(b2);
+            buttonsLayout.AddElement(b3);
 
-            UIRectangle rect2 = new UIRectangle(
-                constraints2,
-                Color.Honeydew);
-            rect.AddElement(rect2);
-
-            Constraints textConstraints = new Constraints(
+            Constraints buttonTextConstraints = new Constraints(
                 new CenterConstraint(),
                 new CenterConstraint(),
                 new AspectConstraint(1.0f),
-                new PercentConstraint(1.0f)
-                );
-            text = new UIString(
-                textConstraints,
-                game.Content.Load<SpriteFont>("DebugFont"),
-                "This is a Text", Color.Green);
-            rect2.AddElement(text);
+                new PercentConstraint(0.5f));
 
-            this.ui.AddElement(rect);
+            UIString b1Text = new UIString(ui, buttonTextConstraints,
+                uiFont, "Play", Color.White);
+            UIString b2Text = new UIString(ui, buttonTextConstraints,
+                uiFont, "Settings", Color.White);
+            UIString b3Text = new UIString(ui, buttonTextConstraints,
+                uiFont, "Exit", Color.White);
+
+            b1.AddElement(b1Text);
+            b2.AddElement(b2Text);
+            b3.AddElement(b3Text);
+
+            UIButtonEventHandler b1EventHandler = new UIButtonEventHandler();
+            b1EventHandler.OnPress += (UIElement element) =>
+            {
+                gameStates.PopAllActiveStates();
+                gameStates.PushState<PlayGameState>();
+            };
+            b1.EventHandler = b1EventHandler;
+
+            UIButtonEventHandler b2EventHandler = new UIButtonEventHandler();
+            b2EventHandler.OnPress += (UIElement element) =>
+            {
+                DebugLog.Info("SETTINGS");
+            };
+            b2.EventHandler = b2EventHandler;
+
+            UIButtonEventHandler b3EventHandler = new UIButtonEventHandler();
+            b3EventHandler.OnPress += (UIElement element) =>
+            {
+                game.Exit();
+            };
+            b3.EventHandler = b3EventHandler;
+
+            /*
+            Constraints constraints = new Constraints(
+                new CenterConstraint(),
+                new PercentConstraint(0.9f),
+                new PercentConstraint(0.8f),
+                new PercentConstraint(0.1f));
+            cards = new UICardLayout(ui, constraints);
+            */
+
+            //ui.AddElement(cards);
         }
 
         public override StateResult Update(GameTime gameTime)
         {
-            float dt = (float) gameTime.ElapsedGameTime.TotalSeconds;
-
-            if(KeyboardInput.IsKeyPressed(Keys.Enter) ||
-                KeyboardInput.IsKeyPressed(Keys.Space))
-            {
-                gameStates.PopAllActiveStates();
-                gameStates.PushState<PlayGameState>();
-            }
-
-            this.ui.Update();
-            if (KeyboardInput.IsKeyDown(Keys.Right))
-                rect.Position += new Vector2(50.0f * dt, 0.0f);
-            if (KeyboardInput.IsKeyDown(Keys.Left))
-                rect.Position -= new Vector2(50.0f * dt, 0.0f);
-
-            if (KeyboardInput.IsKeyPressed(Keys.K))
-                text.Text = text.Text + "_";
+            ui.Update();
 
             return StateResult.KeepExecuting;
         }

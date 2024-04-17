@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -7,6 +8,8 @@ using Engine.Graphics;
 using Engine.Debug;
 using Systems;
 using States;
+using UI;
+using Core;
 
 public class GameMain : Game
 {
@@ -59,6 +62,8 @@ public class GameMain : Game
         DebugTimer.Register("Physics", 120);
         DebugDraw.Init(GraphicsDevice);
         DebugDraw.RegisterLayer(PhysicsSystem.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16);
+        DebugDraw.RegisterLayer(UIElement.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16, false);
+        DrawUtil.Init(GraphicsDevice, Content);
         Util.Init(GraphicsDevice);
 
         gameStates.RegisterState(new MainMenuState(this));
@@ -84,8 +89,8 @@ public class GameMain : Game
 
         if (KeyboardInput.IsKeyPressed(Keys.Escape))
             Exit();
-        
-        EnableDisableDebugDraw(); //BORRAR
+
+        EnableDisableDebugDraw();
         gameStates.Update();
         gameStates.UpdateActiveStates(gameTime);
 
@@ -128,6 +133,7 @@ public class GameMain : Game
         Console.WriteLine("################");
     }
 
+    [Conditional(DebugDraw.DEBUG_DEFINE)]
     public void EnableDisableDebugDraw()
     {
         if(KeyboardInput.IsKeyPressed(Keys.NumPad1))
@@ -140,6 +146,12 @@ public class GameMain : Game
         {
             bool enabled = DebugDraw.IsLayerEnabled(PhysicsSystem.DEBUG_DRAW_LAYER);
             DebugDraw.SetLayerEnabled(PhysicsSystem.DEBUG_DRAW_LAYER, !enabled);
+        }
+
+        if (KeyboardInput.IsKeyPressed(Keys.NumPad3))
+        {
+            bool enabled = DebugDraw.IsLayerEnabled(UIElement.DEBUG_DRAW_LAYER);
+            DebugDraw.SetLayerEnabled(UIElement.DEBUG_DRAW_LAYER, !enabled);
         }
     }
 

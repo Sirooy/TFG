@@ -69,7 +69,10 @@ namespace Core
             DebugAssert.Success(states.ContainsKey(key),
                 "State with key {0} not found", key);
 
+            newState     = null;
             currentState = states[key];
+            if (currentState.OnEnter != null)
+                currentState.OnEnter();
         }
 
         public void Update(float value) 

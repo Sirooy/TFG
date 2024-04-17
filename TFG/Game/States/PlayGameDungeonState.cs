@@ -1,19 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
-using Microsoft.Xna.Framework.Content;
-using Microsoft.Xna.Framework.Graphics;
+﻿using AI;
+using Cmps;
+using Core;
 using Engine.Core;
 using Engine.Debug;
 using Engine.Ecs;
-using Engine.Graphics;
-using Core;
-using Cmps;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.Graphics;
 using Physics;
+using System;
+using System.Collections.Generic;
 using Systems;
-using TFG;
-using AI;
+using UI;
+using static States.PlayGameState;
 
 namespace States
 {
@@ -24,38 +23,10 @@ namespace States
             PlayerRolling,
             PlayerTurn,
             ExecutingPlayerTurn,
+            StartingAITurn,
             AITurn,
             ExecutingAITurn
         };
-
-        const float FACE_SIZE = 32.0f;
-
-        public class DiceRoll
-        {
-            public DiceFace Face;
-            public Vector2 Position;
-
-            public DiceRoll(DiceFace face)
-            {
-                Face = face;
-            }
-        }
-
-        public class PlayerData
-        {
-            public List<Dice> Dices;
-            public List<DiceRoll> DiceRolls;
-            public int MaxRolls;
-            public int CurrentRolls;
-
-            public PlayerData()
-            {
-                Dices = new List<Dice>();
-                DiceRolls = new List<DiceRoll>();
-                MaxRolls = 4;
-                CurrentRolls = 0;
-            }
-        }
 
         public class AIEntity
         {
@@ -93,13 +64,11 @@ namespace States
         private DungeonLevel level;
         private EntityFactory entityFactory;
         private SimpleStateMachine<State> stateMachine;
-
-        private Texture2D diceFaceTexture;
-        private Entity player;
-        private PlayerData playerData;
+        private UIContext ui;
+        private PlayerGameData playerData;
         private AIData aiData;
-        private DiceRoll selectedDiceRoll;
         private Entity selectedTarget;
+        private DiceFace selectedDiceRoll;
 
 
         public PlayGameDungeonState(GameMain game, PlayGameState parentState)
@@ -109,12 +78,12 @@ namespace States
             this.spriteBatch = game.SpriteBatch;
             this.updateSystems = new SystemManager();
             this.drawSystems = new SystemManager();
-            this.entityManager = new EntityManager<Entity>();
+            this.entityManager = parentState.EntityManager;
             this.entityFactory = new EntityFactory(entityManager, game.Content);
             this.cameraController = new CameraController(parentState.Camera);
             this.level = new DungeonLevel(game.Content);
 
-            this.playerData = new PlayerData();
+            this.playerData = parentState.PlayerData;
             this.aiData = new AIData();
 
             playerData.Dices.Add(new Dice(new List<DiceFace>()
@@ -123,41 +92,273 @@ namespace States
                 new DashDiceFace(2),
                 new DashDiceFace(3),
                 new DashDiceFace(4),
-            }));
+            }, new Color(1.0f, 0.3f, 0.3f)));
 
             playerData.Dices.Add(new Dice(new List<DiceFace>()
             {
                 new ProjectileDiceFace(),
                 new ProjectileDiceFace(),
-            }));
+                new ProjectileDiceFace(),
+                new ProjectileDiceFace(),
+                new ProjectileDiceFace(),
+                new ProjectileDiceFace()
+            }, new Color(0.3f, 1.0f, 0.3f)));
 
-            RegisterEntityComponents();
+            playerData.Dices.Add(new Dice(new List<DiceFace>()
+            {
+                new KillEntityDiceFace(),
+                new KillEntityDiceFace(),
+                new KillEntityDiceFace(),
+                new KillEntityDiceFace()
+            }, new Color(0.3f, 0.3f, 1.0f)));
+
+            playerData.Dices.Add(new Dice(new List<DiceFace>()
+            {
+                new KillEntityDiceFace(),
+                new KillEntityDiceFace(),
+                new KillEntityDiceFace(),
+                new KillEntityDiceFace()
+            }, new Color(1.0f, 1.0f, 1.0f)));
+
             RegisterUpdateSystems();
             RegisterDrawSystems();
             CreateStateMachine();
+            CreateUI();
+        }
+
+        private void CreateUI()
+        {
+            ui = new UIContext(game.Screen);
+
+            //Dice Layout
+            CreateUIDiceLayoutAndNumRolls();
+
+            //Bottom bar layout
+            Constraints bottomBarConstraints = new Constraints(
+                new CenterConstraint(),
+                new PercentConstraint(0.9f),
+                new PercentConstraint(1.0f),
+                new PercentConstraint(0.1f));
+            UILayout bottomBarLayout = new UILayout(ui,
+                bottomBarConstraints, UILayout.LayoutType.Horizontal);
+            ui.AddElement(bottomBarLayout, "BottomBar");
+
+            CreateUIManaBar(bottomBarLayout);
+            CreateUIDiceRollsLayout(bottomBarLayout);
+            CreateUIEndTurnButton(bottomBarLayout);
+        }
+
+        private void CreateUIDiceLayoutAndNumRolls()
+        {
+            Texture2D diceIconTexture = game.Content.Load<Texture2D>
+                ("DiceIconSpriteSheet");
+            SpriteFont uiFont = game.Content.Load<SpriteFont>
+                ("MainFont");
+
+            Constraints diceLayoutConstraints = new Constraints(
+                new CenterConstraint(),
+                new PercentConstraint(0.2f),
+                new PercentConstraint(0.6f),
+                new PercentConstraint(0.6f));
+            UILayout diceLayout = new UILayout(ui, diceLayoutConstraints,
+                UILayout.LayoutType.Vertical, new PercentConstraint(0.025f));
+            ui.AddElement(diceLayout, "DiceLayout");
+
+            Constraints numRollsImageConstraints = new Constraints(
+                new CenterConstraint(),
+                new PixelConstraint(0.0f),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(0.2f));
+            UIImage numRollsImage = new UIImage(ui, numRollsImageConstraints,
+                diceIconTexture, new Rectangle(0, 0, 32, 32));
+            diceLayout.AddElement(numRollsImage);
+
+            Constraints numRollsStringConstraints = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(0.6f));
+            UIString numRollsString = new UIString(ui, numRollsStringConstraints,
+                uiFont, "0", Color.Black);
+            numRollsImage.AddElement(numRollsString, "NumRolls");
+        }
+
+        private void CreateUIDices()
+        {
+            Texture2D diceIconTexture = game.Content.Load<Texture2D>
+                ("DiceIconSpriteSheet");
+            SpriteFont uiFont = game.Content.Load<SpriteFont>
+                ("MainFont");
+            Texture2D diceFaceTexture = game.Content.Load<Texture2D>
+                ("DiceFaceSpriteSheet");
+            UILayout diceLayout = ui.GetElement<UILayout>
+                ("DiceLayout");
+
+            for (int i = 0; i < playerData.Dices.Count; ++i)
+            {
+                Dice dice = playerData.Dices[i];
+                Constraints diceImageConstraints = new Constraints(
+                    new PixelConstraint(0.0f),
+                    new PixelConstraint(0.0f),
+                    new AspectConstraint(1.0f),
+                    new PercentConstraint(0.15f));
+                UIImage diceImage = new UIImage(ui, diceImageConstraints,
+                    diceIconTexture, dice.SourceRect);
+                diceImage.Color   = dice.Color;
+                diceImage.Color.A = 128;
+                diceLayout.AddElement(diceImage);
+
+                Constraints diceFacesLayoutConstraints = new Constraints(
+                    new PercentConstraint(1.2f),
+                    new CenterConstraint(),
+                    new PercentConstraint(6.0f),
+                    new PercentConstraint(0.8f));
+                UILayout diceFacesLayout = new UILayout(ui, diceFacesLayoutConstraints,
+                    UILayout.LayoutType.Horizontal, new PercentConstraint(0.1f));
+                diceFacesLayout.IsVisible = false;
+                diceImage.AddElement(diceFacesLayout);
+
+
+                UIButtonEventHandler diceEventHandler = new UIButtonEventHandler();
+                diceEventHandler.OnEnterHover += (UIElement element) =>
+                {
+                    diceFacesLayout.IsVisible = true;
+                    element.Color.A = 255;
+                };
+
+                diceEventHandler.OnExitHover += (UIElement element) =>
+                {
+                    diceFacesLayout.IsVisible = false;
+                    element.Color.A = 128;
+                };
+
+                diceEventHandler.OnPress += (UIElement element) =>
+                {
+                    RollDice(dice);
+                };
+                diceImage.EventHandler = diceEventHandler;
+
+                foreach (DiceFace face in dice.Faces)
+                {
+                    Constraints diceFaceImageConstraints = new Constraints(
+                        new PixelConstraint(0.0f),
+                        new CenterConstraint(),
+                        new AspectConstraint(1.0f),
+                        new PercentConstraint(0.9f));
+
+                    UIImage diceFaceImage = new UIImage(ui, diceFaceImageConstraints,
+                        diceFaceTexture, face.SourceRect);
+                    diceFacesLayout.AddElement(diceFaceImage);
+                }
+            }
+        }
+
+        private void ResetUIDices()
+        {
+            //Remove everything except the first child (Roll Count)
+            UILayout diceLayout = ui.GetElement<UILayout>
+                ("DiceLayout");
+            diceLayout.RemoveElementRange(1, diceLayout.ChildrenCount - 1);
+        }
+
+        private void CreateUIManaBar(UIElement container)
+        {
+            Texture2D uiTexture = game.Content.Load<Texture2D>("UI");
+            SpriteFont uiFont   = game.Content.Load<SpriteFont>("MainFont");
+
+            Constraints manaContainerConstraints = new Constraints(
+               new PixelConstraint(0.0f),
+               new CenterConstraint(),
+               new PercentConstraint(0.1f),
+               new PercentConstraint(1.0f));
+            UIElement manaContainer = new UIElement(ui,
+                manaContainerConstraints);
+            container.AddElement(manaContainer);
+
+            Constraints manaIconConstraints = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(0.8f));
+            UIImage manaIcon = new UIImage(ui, manaIconConstraints,
+                uiTexture, new Rectangle(0, 32, 32, 32));
+            manaContainer.AddElement(manaIcon);
+
+            Constraints manaStringConstraints = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(0.4f));
+            UIString manaString = new UIString(ui, manaStringConstraints,
+                uiFont, "5/5", Color.White);
+            manaContainer.AddElement(manaString, "ManaString");
+        }
+
+        private void CreateUIDiceRollsLayout(UIElement container)
+        {
+            Constraints diceRollsConstraints = new Constraints(
+                new PixelConstraint(0.0f),
+                new CenterConstraint(),
+                new PercentConstraint(0.7f),
+                new PercentConstraint(1.0f));
+            UICardLayout diceRolls = new UICardLayout(ui, diceRollsConstraints);
+            container.AddElement(diceRolls, "DiceRolls");
+        }
+
+        private void CreateUIEndTurnButton(UIElement container)
+        {
+            Texture2D uiTexture = game.Content.Load<Texture2D>("UI");
+            SpriteFont uiFont   = game.Content.Load<SpriteFont>("MainFont");
+
+            Constraints endTurnContainerConstraints = new Constraints(
+                new PixelConstraint(0.0f),
+                new CenterConstraint(),
+                new PercentConstraint(0.2f),
+                new PercentConstraint(1.0f));
+            UIElement endTurnContainer = new UIElement(ui, endTurnContainerConstraints);
+            container.AddElement(endTurnContainer);
+
+            Constraints endTurnButtonConstraints = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new PercentConstraint(0.8f),
+                new AspectConstraint(1.0f));
+            UIImage endTurnButton = new UIImage(ui, endTurnButtonConstraints,
+                uiTexture, new Rectangle(0, 0, 128, 32));
+            endTurnContainer.AddElement(endTurnButton);
+
+            Constraints endTurnStringConstraints = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(0.5f));
+            UIString endTurnString = new UIString(ui, endTurnStringConstraints,
+                uiFont, "End Turn", Color.White);
+            endTurnButton.AddElement(endTurnString);
+
+            UIButtonEventHandler endTurnButtonEvents = new UIButtonEventHandler();
+            endTurnButtonEvents.OnPress += (UIElement element) =>
+            {
+                stateMachine.ChangeState(State.StartingAITurn);
+            };
+            endTurnButton.EventHandler = endTurnButtonEvents;
         }
 
         private void CreateStateMachine()
         {
             stateMachine = new SimpleStateMachine<State>();
-            stateMachine.AddState(State.PlayerRolling, UpdatePlayerRolling, OnEnterPlayerRolling); ;
-            stateMachine.AddState(State.PlayerTurn, UpdatePlayerTurn, OnEnterPlayerTurn);
-            stateMachine.AddState(State.ExecutingPlayerTurn, UpdateExecutingPlayerTurn);
-            stateMachine.AddState(State.AITurn, UpdateAITurn);
-            stateMachine.AddState(State.ExecutingAITurn, UpdateExecutingAITurn);
-        }
-
-        private void RegisterEntityComponents()
-        {
-            entityManager.RegisterComponent<AICmp>();
-            entityManager.RegisterComponent<HealthCmp>();
-            entityManager.RegisterComponent<ScriptCmp>();
-            entityManager.RegisterComponent<SpriteCmp>();
-            entityManager.RegisterComponent<PhysicsCmp>();
-            entityManager.RegisterComponent<ColliderCmp>();
-            entityManager.RegisterComponent<CharacterCmp>();
-            entityManager.RegisterComponent<TriggerColliderCmp>();
-            entityManager.RegisterComponent<AnimationControllerCmp>();
+            stateMachine.AddState(State.PlayerRolling, 
+                UpdatePlayerRolling, OnEnterPlayerRolling, OnExitPlayerRolling);
+            stateMachine.AddState(State.PlayerTurn, 
+                UpdatePlayerTurn, OnEnterPlayerTurn);
+            stateMachine.AddState(State.ExecutingPlayerTurn, 
+                UpdateExecutingPlayerTurn, OnEnterExecutingPlayerTurn);
+            stateMachine.AddState(State.StartingAITurn,
+                UpdateStartingAITurn);
+            stateMachine.AddState(State.AITurn, 
+                UpdateAITurn);
+            stateMachine.AddState(State.ExecutingAITurn, 
+                UpdateExecutingAITurn);
         }
 
         private void RegisterUpdateSystems()
@@ -189,11 +390,16 @@ namespace States
         public override void OnEnter()
         {
             ContentManager content = game.Content;
-            diceFaceTexture = content.Load<Texture2D>("DiceFaceSpriteSheet");
 
+            ResetUIDices();
+            CreateUIDices();
+            
             string levelPath = parentState.GetNextLevel();
             level.Load(levelPath, updateSystems.GetSystem<PhysicsSystem>(),
                 entityFactory);
+            parentState.Camera.Position = new Vector2(
+                level.Width * 0.5f,
+                level.Height * 0.5f);
 
             int spawnsCount = level.SpawnPoints.Count;
             int spawnIndex = Random.Shared.Next(spawnsCount);
@@ -201,8 +407,6 @@ namespace States
             CreatePlayer(level.SpawnPoints[(spawnIndex + 1) % spawnsCount]);
             CreatePlayer(level.SpawnPoints[(spawnIndex + 2) % spawnsCount]);
             stateMachine.SetState(State.PlayerRolling);
-            playerData.DiceRolls.Clear();
-            playerData.CurrentRolls = 0;
 
             DebugLog.Info("OnEnter state: {0}", nameof(PlayGameDungeonState));
         }
@@ -216,6 +420,7 @@ namespace States
         {
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+            ui.Update();
             cameraController.Update(dt);
             stateMachine.Update(dt);
             updateSystems.UpdateSystems(dt);
@@ -228,190 +433,169 @@ namespace States
             game.GraphicsDevice.Clear(Color.Black);
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            spriteBatch.Begin(parentState.Camera, samplerState: SamplerState.PointClamp,
-                blendState: BlendState.Additive);
+            //Draw pre entities layer
+            spriteBatch.Begin(parentState.Camera, samplerState: SamplerState.PointClamp);
             level.TileMap.DrawPreEntitiesLayer(parentState.Camera, spriteBatch);
-
-            if (stateMachine.CurrentStateKey == State.ExecutingPlayerTurn)
-            {
-                if (selectedDiceRoll != null)
-                {
-                    selectedDiceRoll.Face.Draw(spriteBatch, selectedTarget);
-                }
-            }
-
             spriteBatch.End();
 
+            //Draw all the entities
             drawSystems.UpdateSystems(dt);
 
-            spriteBatch.Begin(parentState.Camera, samplerState: SamplerState.PointClamp);
+            //Draw post entities layer and the current attack
+            spriteBatch.Begin(parentState.Camera, samplerState: SamplerState.PointClamp,
+                blendState: BlendState.NonPremultiplied);
             level.TileMap.DrawPostEntitiesLayer(parentState.Camera, spriteBatch);
-            spriteBatch.End();
 
-            //##### BORRAR ######
-            spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            switch (stateMachine.CurrentStateKey)
+            if (stateMachine.CurrentStateKey == State.ExecutingPlayerTurn &&
+                selectedDiceRoll != null)
             {
-                case State.PlayerRolling:
-                    {
-                        DrawPlayerRolls();
-                    }
-                    break;
-                case State.PlayerTurn:
-                    {
-                        DrawPlayerRolls();
-                        if (selectedDiceRoll != null)
-                            spriteBatch.Draw(diceFaceTexture,
-                                MouseInput.GetPosition(game.Screen),
-                                selectedDiceRoll.Face.SourceRect, Color.White);
-                    }
-                    break;
-                case State.ExecutingPlayerTurn:
-                    {
-                        DrawPlayerRolls();
-                    }
-                    break;
-                case State.AITurn: break;
-                case State.ExecutingAITurn: break;
-                default: break;
+                selectedDiceRoll.Draw(spriteBatch, selectedTarget);
             }
             spriteBatch.End();
-            //##### BORRAR ######
+
+            //Draw the UI
+            spriteBatch.Begin(samplerState: SamplerState.PointWrap,
+                blendState: BlendState.NonPremultiplied);
+            ui.Draw(spriteBatch);
+            spriteBatch.End();
 
             return StateResult.StopExecuting;
-        }
-
-        private void RecalculateDiceRollPositions()
-        {
-            const float MARGIN = 4.0f;
-            int count = playerData.DiceRolls.Count;
-            float totalWidth = count * FACE_SIZE + (count - 1) * MARGIN;
-            float startX = game.Screen.HalfWidth - totalWidth * 0.5f;
-            float startY = game.Screen.Height - FACE_SIZE - MARGIN * 4.0f;
-            Vector2 startPos = new Vector2(startX, startY);
-
-            for (int i = 0; i < count; ++i)
-            {
-                DiceRoll roll = playerData.DiceRolls[i];
-                roll.Position = startPos;
-                startPos.X += FACE_SIZE + MARGIN;
-            }
-        }
-
-        private void DrawPlayerRolls()
-        {
-            for (int i = 0; i < playerData.DiceRolls.Count; ++i)
-            {
-                DiceRoll roll = playerData.DiceRolls[i];
-
-                spriteBatch.Draw(diceFaceTexture, roll.Position,
-                    roll.Face.SourceRect, Color.White);
-            }
         }
 
         private void OnEnterPlayerRolling()
         {
             playerData.DiceRolls.Clear();
-            playerData.CurrentRolls = 0;
+            playerData.NumRollsLeft = playerData.MaxRolls;
+
+            UIString numRollsString = ui.GetElement<UIString>
+                ("NumRolls");
+            numRollsString.Text = playerData.NumRollsLeft.ToString();
+
+            UILayout diceLayout = ui.GetElement<UILayout>
+                ("DiceLayout");
+            diceLayout.IsVisible = true;
+
+            UIElement rollsLayout = ui.GetElement<UIElement>
+                ("DiceRolls");
+            rollsLayout.ClearElements();
+
+            UIElement bottomBar = ui.GetElement<UIElement>
+                ("BottomBar");
+            bottomBar.IsEnabled = false;
+            bottomBar.IsVisible = true;
+        }
+
+        private void OnExitPlayerRolling()
+        {
+            UIElement diceLayout = ui.GetElement<UIElement>
+                ("DiceLayout");
+            diceLayout.IsVisible = false;
+        }
+
+        private void RollDice(Dice dice)
+        {
+            AddDiceRoll(dice.Roll());
+
+            playerData.NumRollsLeft--;
+
+            UIString numRollsString = ui.GetElement<UIString>
+                ("NumRolls");
+            numRollsString.Text     = playerData.NumRollsLeft.ToString();
         }
 
         private void UpdatePlayerRolling(float _)
         {
-            if (KeyboardInput.IsKeyPressed(Keys.D1))
+            if (playerData.NumRollsLeft == 0)
             {
-                playerData.CurrentRolls++;
-                playerData.DiceRolls.Add(new DiceRoll(playerData.Dices[0].Roll()));
-                RecalculateDiceRollPositions();
-
-                if (playerData.CurrentRolls == playerData.MaxRolls)
-                {
-                    stateMachine.ChangeState(State.PlayerTurn);
-                }
+                stateMachine.ChangeState(State.PlayerTurn);
             }
-            else if (KeyboardInput.IsKeyPressed(Keys.D2))
-            {
-                playerData.CurrentRolls++;
-                playerData.DiceRolls.Add(new DiceRoll(playerData.Dices[1].Roll()));
-                RecalculateDiceRollPositions();
+        }
 
-                if (playerData.CurrentRolls == playerData.MaxRolls)
-                {
-                    stateMachine.ChangeState(State.PlayerTurn);
-                }
-            }
+        private void AddDiceRoll(DiceFace roll)
+        {
+            Texture2D diceFaceTexture = game.Content.Load<Texture2D>
+                ("DiceFaceSpriteSheet");
+            UICardLayout rollsLayout   = ui.GetElement<UICardLayout>
+                ("DiceRolls");
+
+            Constraints rollConstraints = new Constraints(
+                new PixelConstraint(0.0f),
+                new CenterConstraint(),
+                new AspectConstraint(1.0f),
+                new PercentConstraint(0.9f));
+            UIImage rollImage = new UIImage(ui, rollConstraints, 
+                diceFaceTexture, roll.SourceRect);
+
+            rollsLayout.AddElement(rollImage);
+            playerData.DiceRolls.Add(roll);
         }
 
         private void OnEnterPlayerTurn()
         {
-            selectedDiceRoll = null;
             selectedTarget = null;
+
+            UIElement bottomBar = ui.GetElement<UIElement>
+                ("BottomBar");
+            bottomBar.IsEnabled = true;
+            bottomBar.IsVisible = true;
         }
 
         private void UpdatePlayerTurn(float _)
         {
-            if (selectedDiceRoll == null)
-            {
-                for (int i = 0; i < playerData.DiceRolls.Count; ++i)
-                {
-                    DiceRoll roll = playerData.DiceRolls[i];
-                    Vector2 mouse = MouseInput.GetPosition(game.Screen);
+            UICardLayout rollsLayout = ui.GetElement<UICardLayout>
+                ("DiceRolls");
 
-                    if (mouse.X >= roll.Position.X && mouse.X <= roll.Position.X + FACE_SIZE &&
-                       mouse.Y >= roll.Position.Y && mouse.Y <= roll.Position.Y + FACE_SIZE)
-                    {
-                        if (MouseInput.IsLeftButtonPressed())
-                        {
-                            selectedDiceRoll = roll;
-                            playerData.DiceRolls.RemoveAt(i);
-                            RecalculateDiceRollPositions();
-                            break;
-                        }
-                    }
+            if(rollsLayout.ElementDropped)
+            {
+                int index = rollsLayout.GetElementIndex(
+                    rollsLayout.SelectedElement);
+
+                selectedDiceRoll = playerData.DiceRolls[index];
+                selectedTarget   = GetDiceRollSelectedTarget();
+
+                if(selectedTarget != null)
+                {
+                    playerData.DiceRolls.RemoveAt(index);
+                    rollsLayout.RemoveElement(rollsLayout.SelectedElement);
+
+                    stateMachine.ChangeState(State.ExecutingPlayerTurn);
+                }
+                else
+                {
+                    selectedDiceRoll = null;
                 }
             }
-            else
+        }
+
+        private Entity GetDiceRollSelectedTarget()
+        {
+            Entity target = null;
+            Vector2 mouse = MouseInput.GetPosition(parentState.Camera);
+
+            entityManager.ForEachComponent((Entity e, CharacterCmp chara) =>
             {
-                if (MouseInput.IsLeftButtonReleased())
+                if (e.HasTag(EntityTags.Player))
                 {
-                    Vector2 mouse = MouseInput.GetPosition(parentState.Camera);
-                    entityManager.ForEachComponent((Entity e, CharacterCmp chara) =>
-                    {
-                        if (e.HasTag(EntityTags.Player))
-                        {
-                            ColliderCmp col = entityManager.GetComponent<ColliderCmp>(e);
-                            CircleCollider c = (CircleCollider)col.Collider;
+                    ColliderCmp col  = entityManager.GetComponent<ColliderCmp>(e);
+                    CircleCollider c = (CircleCollider)col.Collider;
 
-                            if (CollisionTester.PointVsCircle(mouse,
-                                col.Transform.CachedWorldPosition, c.CachedRadius))
-                            {
-                                selectedTarget = e;
-                                chara.SelectState = SelectState.Selected;
-                                stateMachine.ChangeState(State.ExecutingPlayerTurn);
-                                return;
-                            }
-                        }
-                    });
-
-                    if (selectedTarget == null)
+                    if (CollisionTester.PointVsCircle(mouse,
+                        col.Transform.CachedWorldPosition, c.CachedRadius))
                     {
-                        playerData.DiceRolls.Add(selectedDiceRoll);
-                        RecalculateDiceRollPositions();
-                        selectedDiceRoll = null;
+                        target = e;
+                        return;
                     }
                 }
-            }
+            });
 
-            if (selectedDiceRoll == null && (playerData.DiceRolls.Count == 0 ||
-                KeyboardInput.IsKeyPressed(Keys.Enter)))
-            {
-                aiData.Enemies.Clear();
-                entityManager.ForEachComponent((Entity e, AICmp ai) =>
-                {
-                    aiData.Enemies.Add(new AIEntity(e, ai));
-                });
+            return target;
+        }
 
-                stateMachine.ChangeState(State.AITurn);
-            }
+        private void OnEnterExecutingPlayerTurn()
+        {
+            UIElement bottomBar = ui.GetElement<UIElement>
+                        ("BottomBar");
+            bottomBar.IsVisible = false;
         }
 
         private void UpdateExecutingPlayerTurn(float dt)
@@ -430,23 +614,49 @@ namespace States
                         parentState.GameStates.PopAllActiveStates();
                         parentState.GameStates.PushState<PlayGameWinState>();
                     }
+                    if (playerData.DiceRolls.Count == 0)
+                    {
+                        stateMachine.ChangeState(State.StartingAITurn);
+                    }
                     else
+                    {
                         stateMachine.ChangeState(State.PlayerTurn);
+                    }
                 }
             }
             else
             {
-                bool hasFinished = selectedDiceRoll.Face.Update(dt, entityManager,
+                SkillState state = selectedDiceRoll.Update(dt, entityManager,
                     entityFactory, cameraController.Camera, selectedTarget);
 
-                if (hasFinished)
+                CharacterCmp chara = entityManager.GetComponent<CharacterCmp>
+                    (selectedTarget);
+                if (state == SkillState.Finished)
                 {
-                    CharacterCmp chara = entityManager.GetComponent<CharacterCmp>(selectedTarget);
                     chara.SelectState = SelectState.None;
-                    selectedDiceRoll = null;
-                    selectedTarget = null;
+                    selectedDiceRoll  = null;
+                    selectedTarget    = null;
+                }
+                else
+                {
+                    chara.SelectState = SelectState.Selected;
                 }
             }
+        }
+
+        private void UpdateStartingAITurn(float _)
+        {
+            aiData.Enemies.Clear();
+            entityManager.ForEachComponent((Entity e, AICmp ai) =>
+            {
+                aiData.Enemies.Add(new AIEntity(e, ai));
+            });
+
+            UIElement bottomBar = ui.GetElement<UIElement>
+                ("BottomBar");
+            bottomBar.IsVisible = false;
+
+            stateMachine.ChangeState(State.AITurn);
         }
 
         private void UpdateAITurn(float _)
@@ -507,7 +717,9 @@ namespace States
                     parentState.GameStates.PushState<PlayGameWinState>();
                 }
                 else
+                {
                     stateMachine.ChangeState(State.AITurn);
+                }
             }
         }
 
@@ -565,15 +777,6 @@ namespace States
             anim.Play("Idle");
 
             entityManager.AddComponent(e, new HealthCmp(20.0f));
-
-            if (player == null) player = e;
-            else
-            {
-                Color[] colors = new Color[]
-                    { Color.Red, Color.Green, Color.Blue, Color.Yellow };
-                Color color = colors[Random.Shared.Next(colors.Length)];
-                playerSpr.Color = color;
-            }
         }
 
         private bool TurnHasFinished()

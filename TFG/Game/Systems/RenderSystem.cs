@@ -28,12 +28,13 @@ namespace Systems
         public override void Update(float _)
         {
             spriteBatch.Begin(camera, sortMode: SpriteSortMode.FrontToBack, 
-                samplerState: SamplerState.PointClamp);
+                samplerState: SamplerState.PointClamp, blendState: BlendState.NonPremultiplied);
             DrawCharacterCmps();
             DrawSpriteCmps();
             spriteBatch.End();
 
-            spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp);
+            spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp,
+                blendState: BlendState.NonPremultiplied);
             DrawHealthCmps();
             spriteBatch.End();
             

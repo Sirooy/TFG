@@ -2,7 +2,7 @@
 using Microsoft.Xna.Framework.Input;
 using Engine.Core;
 using Engine.Debug;
-
+using System;
 
 namespace States
 {
@@ -33,11 +33,13 @@ namespace States
         {
             game.GraphicsDevice.Clear(Color.Yellow);
 
-            return StateResult.KeepExecuting;
+            return StateResult.StopExecuting;
         }
 
         public override void OnEnter()
         {
+            parentState.EntityManager.Clear();
+
             DebugDraw.Camera = null;
             DebugLog.Info("OnEnter state: {0}", nameof(PlayGameLoseState));
         }
