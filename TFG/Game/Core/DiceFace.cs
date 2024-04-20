@@ -137,6 +137,7 @@ namespace Core
     }
 
     //DEBUG DICE FACES
+    #region Debug Faces
     public class KillEntityDiceFace : DiceFace
     {
         public KillEntityDiceFace() : base(new Rectangle(32, 0, 32, 32))
@@ -151,4 +152,21 @@ namespace Core
             return SkillState.Finished;
         }
     }
+
+    public class FullHealDiceFace : DiceFace
+    {
+        public FullHealDiceFace() : base(new Rectangle(32, 0, 32, 32))
+            { }
+
+        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
+            EntityFactory entityFactory, Camera2D camera, Entity target)
+        {
+            if (entityManager.TryGetComponent(target, out HealthCmp health))
+                health.CurrentHealth = health.MaxHealth;
+
+            return SkillState.Finished;
+        }
+    }
+
+    #endregion
 }

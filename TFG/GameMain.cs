@@ -64,7 +64,6 @@ public class GameMain : Game
         DebugDraw.RegisterLayer(PhysicsSystem.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16);
         DebugDraw.RegisterLayer(UIElement.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16, false);
         DrawUtil.Init(GraphicsDevice, Content);
-        Util.Init(GraphicsDevice);
 
         gameStates.RegisterState(new MainMenuState(this));
         gameStates.RegisterState(new PlayGameState(this));
@@ -79,7 +78,8 @@ public class GameMain : Game
     {
         DebugLog.Info("Loading main content");
 
-        font = Content.Load<SpriteFont>("DebugFont");
+        font = Content.Load<SpriteFont>(
+            GameContent.FontPath("DebugFont"));
     }
 
     protected override void Update(GameTime gameTime)

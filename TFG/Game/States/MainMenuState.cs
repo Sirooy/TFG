@@ -1,10 +1,10 @@
-﻿using System;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Core;
 using Engine.Debug;
 using UI;
+using Core;
 
 namespace States
 {
@@ -27,8 +27,10 @@ namespace States
 
         private void CreateUI()
         {
-            Texture2D uiTexture = game.Content.Load<Texture2D>("UI");
-            SpriteFont uiFont   = game.Content.Load<SpriteFont>("MainFont");
+            Texture2D uiTexture = game.Content.Load<Texture2D>(
+                GameContent.TexturePath("UI"));
+            SpriteFont uiFont   = game.Content.Load<SpriteFont>(
+                GameContent.FontPath("MainFont"));
 
             ui = new UIContext(game.Screen);
 
@@ -104,17 +106,6 @@ namespace States
                 game.Exit();
             };
             b3.EventHandler = b3EventHandler;
-
-            /*
-            Constraints constraints = new Constraints(
-                new CenterConstraint(),
-                new PercentConstraint(0.9f),
-                new PercentConstraint(0.8f),
-                new PercentConstraint(0.1f));
-            cards = new UICardLayout(ui, constraints);
-            */
-
-            //ui.AddElement(cards);
         }
 
         public override StateResult Update(GameTime gameTime)

@@ -8,14 +8,6 @@ namespace Engine.Core
 {
     public static class Util
     {
-        private static Texture2D BlankTexture;
-
-        public static void Init(GraphicsDevice graphicsDevice)
-        {
-            BlankTexture = new Texture2D(graphicsDevice, 1, 1);
-            BlankTexture.SetData(new Color[] { Color.White });
-        }
-
         public static void Begin(this SpriteBatch spriteBatch, Camera2D camera,
             SpriteSortMode sortMode = SpriteSortMode.Deferred, BlendState blendState = null,
             SamplerState samplerState = null, DepthStencilState depthStencilState = null,

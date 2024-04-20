@@ -27,7 +27,8 @@ namespace Core
         {
             BlankTexture    = new Texture2D(graphicsDevice, 1, 1);
             BlankTexture.SetData(new Color[] { Color.White });
-            SkillsUITexture = content.Load<Texture2D>("SkillsUI");
+            SkillsUITexture = content.Load<Texture2D>(
+                GameContent.TexturePath("GameplayUI"));
             ArrowSourceRects = new Rectangle[3]
             {
                 new Rectangle(0,  0, 32, 32),
@@ -41,6 +42,13 @@ namespace Core
         {
             spriteBatch.Draw(BlankTexture, position, null, color,
                 0.0f, Vector2.Zero, size, SpriteEffects.None, 0.0f);
+        }
+
+        public static void DrawArrow(this SpriteBatch spriteBatch,
+            Vector2 start, Vector2 dir, float distance, float scale, Color color)
+        {
+            Vector2 end = start + dir * distance;
+            DrawArrow(spriteBatch, start, end, scale, color);
         }
 
         public static void DrawArrow(this SpriteBatch spriteBatch,

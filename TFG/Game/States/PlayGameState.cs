@@ -66,6 +66,7 @@ namespace States
 
         private void CreateGameStates()
         {
+            gameStates.RegisterState(new PlayGameSelectCharState(game, this));
             gameStates.RegisterState(new PlayGameDungeonState(game, this));
             gameStates.RegisterState(new PlayGameWinState(game, this));
             gameStates.RegisterState(new PlayGameLoseState(game, this));
@@ -88,9 +89,9 @@ namespace States
         {
             ContentManager content = game.Content;
             DebugDraw.Camera       = camera;
-
+            
             LoadLevelPaths();
-            gameStates.PushState<PlayGameDungeonState>();
+            gameStates.PushState<PlayGameSelectCharState>();
 
             DebugLog.Info("OnEnter state: {0}", nameof(PlayGameState));
         }
@@ -121,7 +122,7 @@ namespace States
         private void LoadLevelPaths()
         {
             levels.Clear();
-            foreach (string level in Directory.GetFiles("../../../Content/levels"))
+            foreach (string level in Directory.GetFiles("../../../Content/Levels"))
             {
                 if (level.EndsWith(".m"))
                 {

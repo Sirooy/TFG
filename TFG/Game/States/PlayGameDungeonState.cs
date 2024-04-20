@@ -151,9 +151,9 @@ namespace States
         private void CreateUIDiceLayoutAndNumRolls()
         {
             Texture2D diceIconTexture = game.Content.Load<Texture2D>
-                ("DiceIconSpriteSheet");
+                (GameContent.TexturePath("DiceIconSpriteSheet"));
             SpriteFont uiFont = game.Content.Load<SpriteFont>
-                ("MainFont");
+                (GameContent.FontPath("MainFont"));
 
             Constraints diceLayoutConstraints = new Constraints(
                 new CenterConstraint(),
@@ -186,11 +186,11 @@ namespace States
         private void CreateUIDices()
         {
             Texture2D diceIconTexture = game.Content.Load<Texture2D>
-                ("DiceIconSpriteSheet");
-            SpriteFont uiFont = game.Content.Load<SpriteFont>
-                ("MainFont");
+                (GameContent.TexturePath("DiceIconSpriteSheet"));
             Texture2D diceFaceTexture = game.Content.Load<Texture2D>
-                ("DiceFaceSpriteSheet");
+                (GameContent.TexturePath("DiceFaceSpriteSheet"));
+            SpriteFont uiFont = game.Content.Load<SpriteFont>
+                (GameContent.FontPath("MainFont"));
             UILayout diceLayout = ui.GetElement<UILayout>
                 ("DiceLayout");
 
@@ -263,8 +263,10 @@ namespace States
 
         private void CreateUIManaBar(UIElement container)
         {
-            Texture2D uiTexture = game.Content.Load<Texture2D>("UI");
-            SpriteFont uiFont   = game.Content.Load<SpriteFont>("MainFont");
+            Texture2D uiTexture = game.Content.Load<Texture2D>(
+                GameContent.TexturePath("UI"));
+            SpriteFont uiFont   = game.Content.Load<SpriteFont>(
+                GameContent.FontPath("MainFont"));
 
             Constraints manaContainerConstraints = new Constraints(
                new PixelConstraint(0.0f),
@@ -307,8 +309,10 @@ namespace States
 
         private void CreateUIEndTurnButton(UIElement container)
         {
-            Texture2D uiTexture = game.Content.Load<Texture2D>("UI");
-            SpriteFont uiFont   = game.Content.Load<SpriteFont>("MainFont");
+            Texture2D uiTexture = game.Content.Load<Texture2D>(
+                GameContent.TexturePath("UI"));
+            SpriteFont uiFont   = game.Content.Load<SpriteFont>(
+                GameContent.FontPath("MainFont"));
 
             Constraints endTurnContainerConstraints = new Constraints(
                 new PixelConstraint(0.0f),
@@ -403,9 +407,9 @@ namespace States
 
             int spawnsCount = level.SpawnPoints.Count;
             int spawnIndex = Random.Shared.Next(spawnsCount);
-            CreatePlayer(level.SpawnPoints[spawnIndex]);
-            CreatePlayer(level.SpawnPoints[(spawnIndex + 1) % spawnsCount]);
-            CreatePlayer(level.SpawnPoints[(spawnIndex + 2) % spawnsCount]);
+            entityFactory.CreatePlayer(PlayerType.Warrior, level.SpawnPoints[spawnIndex]);
+            entityFactory.CreatePlayer(PlayerType.Mage, level.SpawnPoints[(spawnIndex + 1) % spawnsCount]);
+            entityFactory.CreatePlayer(PlayerType.Warrior, level.SpawnPoints[(spawnIndex + 2) % spawnsCount]);
             stateMachine.SetState(State.PlayerRolling);
 
             DebugLog.Info("OnEnter state: {0}", nameof(PlayGameDungeonState));
@@ -514,7 +518,7 @@ namespace States
         private void AddDiceRoll(DiceFace roll)
         {
             Texture2D diceFaceTexture = game.Content.Load<Texture2D>
-                ("DiceFaceSpriteSheet");
+                (GameContent.TexturePath("DiceFaceSpriteSheet"));
             UICardLayout rollsLayout   = ui.GetElement<UICardLayout>
                 ("DiceRolls");
 
@@ -738,8 +742,10 @@ namespace States
         //BORRAR
         private void CreatePlayer(Vector2 position)
         {
-            Texture2D platformTexture = game.Content.Load<Texture2D>("EntityPlatform");
-            Texture2D playerTexture = game.Content.Load<Texture2D>("PlayerSpriteSheet");
+            Texture2D platformTexture = game.Content.Load<Texture2D>(
+                GameContent.TexturePath("EntityPlatform"));
+            Texture2D playerTexture = game.Content.Load<Texture2D>(
+                GameContent.TexturePath("PlayerSpriteSheet"));
 
             Vector2 pos = position;
             Entity e = entityManager.CreateEntity();
@@ -776,7 +782,13 @@ namespace States
             }, 0.5f));
             anim.Play("Idle");
 
-            entityManager.AddComponent(e, new HealthCmp(20.0f));
+            HealthCmp health = entityManager.AddComponent(e, new HealthCmp(20.0f));
+            health.Texture = game.Content.Load<Texture2D>(
+                GameContent.TexturePath("GameplayUI"));
+            health.HealthBorderSourceRect = new Rectangle(
+                0, 32, 64, 16);
+            health.CurrentHealthSourceRect = new Rectangle(
+                0, 48, 48, 16);
         }
 
         private bool TurnHasFinished()

@@ -53,7 +53,8 @@ namespace Core
                     Width     = NumTilesX * TileSize;
                     Height    = NumTilesY * TileSize;
 
-                    Texture2D tileset         = Content.Load<Texture2D>(reader.ReadString());
+                    Texture2D tileset         = Content.Load<Texture2D>(
+                        GameContent.TexturePath(reader.ReadString()));
                     TileMap.PreEntitiesTiles  = ReadTileLayer(reader, tileset);
                     TileMap.PostEntitiesTiles = ReadTileLayer(reader, tileset);
                     ReadCollisionLayer(reader);

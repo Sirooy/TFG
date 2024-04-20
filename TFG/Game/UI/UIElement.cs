@@ -128,6 +128,16 @@ namespace UI
             children.Clear();
         }
 
+        public UIElement GetElement(int index)
+        {
+            return children[index];
+        }
+
+        public T GetElement<T>(int index) where T : UIElement
+        {
+            return (T) children[index];
+        }
+
         public int GetElementIndex(UIElement element)
         {
             return children.FindIndex((UIElement e) => e == element);

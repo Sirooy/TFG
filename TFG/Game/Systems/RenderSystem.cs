@@ -46,28 +46,45 @@ namespace Systems
             entityManager.ForEachComponent((Entity e, HealthCmp health) =>
             {
                 const float MAX_WIDTH = 32.0f;
-                const float HEIGHT = 2.0f;
-                const float MARGIN = 4.0f;
+                const float MARGIN    = 4.0f;
 
-                Vector2 startPos = Vector2.Zero; 
+                float borderScale  = MAX_WIDTH / health.HealthBorderSourceRect.Width;
+                float borderHeight = health.HealthBorderSourceRect.Height * borderScale;
+                float healthWidth  = health.CurrentHealthSourceRect.Width * borderScale;
+                float healthHeight = health.CurrentHealthSourceRect.Height * borderScale;
+
+                Vector2 borderPos = Vector2.Zero; 
                 if (entityManager.TryGetComponent(e, out SpriteCmp sprite))
                 {
-                    
-                    startPos = new Vector2(
+                    borderPos = new Vector2(
                         e.Position.X - MAX_WIDTH * 0.5f,
-                        sprite.Transform.CachedWorldPosition.Y - sprite.Origin.Y - MARGIN);
+                        sprite.Transform.CachedWorldPosition.Y - sprite.Origin.Y - 
+                            borderHeight - MARGIN);
                 }
                 else
                 {
-                    startPos = e.Position - new Vector2(
-                        MAX_WIDTH * 0.5f, HEIGHT * 0.5f);
+                    borderPos = e.Position - new Vector2(
+                        MAX_WIDTH * 0.5f, borderHeight * 0.5f);
                 }
 
+                //Draw border
+                spriteBatch.Draw(health.Texture, borderPos, health.HealthBorderSourceRect,
+                    Color.White, 0.0f, Vector2.Zero, borderScale, SpriteEffects.None, 0.0f);
+
+                //Draw health
                 float t = health.CurrentHealth / health.MaxHealth;
-                spriteBatch.DrawRectangle(startPos, new Vector2(MAX_WIDTH, HEIGHT),
-                    Color.Red);
-                spriteBatch.DrawRectangle(startPos, new Vector2(MAX_WIDTH * t, HEIGHT),
-                    new Color(0.0f, 1.0f, 0.0f));
+                Vector2 healthPos = new Vector2(
+                    borderPos.X + MAX_WIDTH * 0.5f - healthWidth * 0.5f,
+                    borderPos.Y + borderHeight * 0.5f - healthHeight * 0.5f);
+                Rectangle healthSourceRect = health.CurrentHealthSourceRect;
+                healthSourceRect.Width = (int)Math.Round(healthSourceRect.Width * t);
+
+                spriteBatch.Draw(health.Texture, healthPos, health.CurrentHealthSourceRect,
+                    Color.Red, 0.0f, Vector2.Zero, borderScale,
+                    SpriteEffects.None, 0.0f);
+                spriteBatch.Draw(health.Texture, healthPos, healthSourceRect,
+                    new Color(0, 255, 0), 0.0f, Vector2.Zero, borderScale, 
+                    SpriteEffects.None, 0.0f);
             });
         }
 
