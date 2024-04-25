@@ -1,9 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Core
 {
@@ -71,20 +68,38 @@ namespace Core
 
         public List<Vector2> FindPath(Vector2 from, Vector2 to)
         {
-            int fromX = Math.Clamp((int) (from.X / level.TileSize),
+            Tuple<Node, Node> nodes = GetStartAndEndNodes(from, to);
+
+            List<Vector2> path = new List<Vector2>();
+            Solve(path, nodes.Item1, nodes.Item2);
+
+            return path;
+        }
+
+        public void FindPath(List<Vector2> path, Vector2 from, Vector2 to)
+        {
+            Tuple<Node, Node> nodes = GetStartAndEndNodes(from, to);
+
+            path.Clear();
+            Solve(path, nodes.Item1, nodes.Item2);
+        }
+
+        public Tuple<Node, Node> GetStartAndEndNodes(Vector2 from, Vector2 to)
+        {
+            int fromX = Math.Clamp((int)(from.X / level.TileSize),
                 0, level.NumTilesX - 1);
             int fromY = Math.Clamp((int)(from.Y / level.TileSize),
                 0, level.NumTilesY - 1);
-            int toX   = Math.Clamp((int)(to.X / level.TileSize),
+            int toX = Math.Clamp((int)(to.X / level.TileSize),
                 0, level.NumTilesX - 1);
-            int toY   = Math.Clamp((int)(to.Y / level.TileSize),
+            int toY = Math.Clamp((int)(to.Y / level.TileSize),
                 0, level.NumTilesY - 1);
 
             //Invert the nodes because the path returned is inverted
             Node fromNode = nodes[toX, toY];
-            Node toNode   = nodes[fromX, fromY];
+            Node toNode = nodes[fromX, fromY];
 
-            return Solve(fromNode, toNode);
+            return new Tuple<Node, Node>(fromNode, toNode);
         }
 
         private void CreateNodes(byte[,] tiles, int width, int height)
@@ -171,7 +186,7 @@ namespace Core
             }
         }
 
-        private List<Vector2> Solve(Node start, Node end)
+        private void Solve(List<Vector2> ret, Node start, Node end)
         {
             ResetNodes();
             start.TotalCost = 0;
@@ -217,15 +232,11 @@ namespace Core
                 }
             }
 
-            List<Vector2> ret = new List<Vector2>();
-
             while(end != null)
             {
                 ret.Add(end.WorldPos);
                 end = end.PathParent;
             }
-
-            return ret;
         }
 
         //Manhattan distance

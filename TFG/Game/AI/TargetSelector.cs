@@ -8,7 +8,7 @@ namespace AI
 {
     public abstract class TargetSelector
     {
-        public abstract void Select(EntityManager<Entity> entityManager,
+        public abstract void Select(GameWorld world,
             Entity enemy, AICmp ai);
     }
 
@@ -21,14 +21,14 @@ namespace AI
             this.tags = tags;
         }
 
-        public override void Select(EntityManager<Entity> entityManager, 
+        public override void Select(GameWorld world, 
             Entity enemy, AICmp ai)
         {
             ai.CurrentTargets.Clear();
 
             float minDist = float.MaxValue;
             Entity target = null;
-            entityManager.ForEachEntity((Entity e) =>
+            world.EntityManager.ForEachEntity((Entity e) =>
             {
                 if(e.HasTag(tags))
                 {

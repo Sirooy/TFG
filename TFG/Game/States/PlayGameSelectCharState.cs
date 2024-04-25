@@ -60,7 +60,8 @@ namespace States
                 new PercentConstraint(0.9f),
                 new PercentConstraint(0.9f));
             UILayout mainLayout = new UILayout(ui, mainLayoutConstraints,
-                UILayout.LayoutType.Vertical, new PercentConstraint(0.05f));
+                LayoutType.Vertical, LayoutAlign.Start, 
+                new PercentConstraint(0.05f));
             ui.AddElement(mainLayout);
 
             CreateUITitle(mainLayout);
@@ -95,7 +96,8 @@ namespace States
                 new PercentConstraint(0.8f),
                 new PercentConstraint(0.4f));
             UILayout charsLayout = new UILayout(ui, charsLayoutConstraints,
-                UILayout.LayoutType.Horizontal, new PercentConstraint(0.05f));
+                LayoutType.Horizontal, LayoutAlign.Center, 
+                new PercentConstraint(0.05f));
             mainLayout.AddElement(charsLayout);
 
             Constraints charImgConstraints = new Constraints(
@@ -161,8 +163,8 @@ namespace States
                 new PercentConstraint(0.5f),
                 new PercentConstraint(0.15f));
             UILayout selectedCharsLayout = new UILayout(ui,
-                selectedCharsLayoutConstraints, UILayout.LayoutType.Horizontal,
-                new PercentConstraint(0.03f));
+                selectedCharsLayoutConstraints, LayoutType.Horizontal,
+                LayoutAlign.Center, new PercentConstraint(0.03f));
             mainLayout.AddElement(selectedCharsLayout, "SelectedChars");
 
             Constraints selectedCharImgConstraints = new Constraints(
@@ -212,6 +214,15 @@ namespace States
                 uiTexture, new Rectangle(0, 0, 128, 32));
             mainLayout.AddElement(startButton, "StartButton");
 
+            UIButtonEventHandler startButtonEventHandler = new UIButtonEventHandler();
+            startButtonEventHandler.OnPress += (UIElement element) =>
+            {
+                CreatePlayerCharacters();
+                parentState.GameStates.PopAllActiveStates();
+                parentState.GameStates.PushState<PlayGameDungeonState>();
+            };
+            startButton.EventHandler = startButtonEventHandler;
+
             Constraints buttonTextConstraints = new Constraints(
                 new CenterConstraint(),
                 new CenterConstraint(),
@@ -224,13 +235,6 @@ namespace States
 
         public override StateResult Update(GameTime gameTime)
         {
-            if (KeyboardInput.IsKeyPressed(Keys.Enter) ||
-                KeyboardInput.IsKeyPressed(Keys.Space))
-            {
-                game.GameStates.PopAllActiveStates();
-                game.GameStates.PushState<MainMenuState>();
-            }
-
             ui.Update();
 
             return StateResult.StopExecuting;
@@ -251,6 +255,7 @@ namespace States
         public override void OnEnter()
         {
             parentState.EntityManager.Clear();
+            parentState.PlayerData.Dices.Clear();
 
             for (int i = 0; i < selectedChars.Length; ++i)
                 selectedChars[i] = -1;
@@ -258,6 +263,17 @@ namespace States
 
             DebugDraw.Camera = null;
             DebugLog.Info("OnEnter state: {0}", nameof(PlayGameLoseState));
+        }
+
+        private void CreatePlayerCharacters()
+        {
+            EntityFactory factory = parentState.EntityFactory;
+
+            foreach(int charType in selectedChars)
+            {
+                PlayerType type = (PlayerType)charType;
+                factory.CreatePlayer(type, Vector2.Zero);
+            }
         }
 
         private void ResetUI()

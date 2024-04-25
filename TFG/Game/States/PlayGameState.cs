@@ -22,14 +22,14 @@ namespace States
         public class PlayerGameData
         {
             public List<Dice> Dices;
-            public List<DiceFace> DiceRolls;
+            public List<PlayerSkill> DiceRolls;
             public int MaxRolls;
             public int NumRollsLeft;
 
             public PlayerGameData()
             {
                 Dices        = new List<Dice>();
-                DiceRolls    = new List<DiceFace>();
+                DiceRolls    = new List<PlayerSkill>();
                 MaxRolls     = 4;
                 NumRollsLeft = MaxRolls;
             }
@@ -47,6 +47,7 @@ namespace States
         public GameStateStack GameStates           { get { return gameStates; } }
         public EntityManager<Entity> EntityManager { get { return entityManager; } }
         public PlayerGameData PlayerData           { get { return playerData; } }
+        public EntityFactory EntityFactory         { get { return entityFactory; } }
 
         public PlayGameState(GameMain game)
         {

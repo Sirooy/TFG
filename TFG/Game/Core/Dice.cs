@@ -7,7 +7,7 @@ namespace Core
     public class Dice
     {
         public Color Color;
-        private List<DiceFace> faces;
+        private List<PlayerSkill> faces;
 
         public Rectangle SourceRect
         {
@@ -23,21 +23,21 @@ namespace Core
             }
         }
 
-        public List<DiceFace> Faces { get { return faces; } } 
+        public List<PlayerSkill> Faces { get { return faces; } } 
 
         public Dice(Color color)
         {
-            this.faces = new List<DiceFace>();
+            this.faces = new List<PlayerSkill>();
             this.Color = color;
         }
 
-        public Dice(List<DiceFace> faces, Color color)
+        public Dice(List<PlayerSkill> faces, Color color)
         {
             this.faces = faces;
             this.Color = color;
         }
 
-        public DiceFace Roll()
+        public PlayerSkill Roll()
         {
             int index = Random.Shared.Next(faces.Count);
 

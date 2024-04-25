@@ -49,7 +49,8 @@ namespace States
                 new PercentConstraint(0.4f),
                 new PercentConstraint(0.6f));
             UILayout buttonsLayout = new UILayout(ui, layoutConstraints,
-                UILayout.LayoutType.Vertical, new PercentConstraint(0.05f));
+                LayoutType.Vertical, LayoutAlign.Center, 
+                new PercentConstraint(0.05f));
             ui.AddElement(buttonsLayout);
 
             Constraints buttonConstraints = new Constraints(

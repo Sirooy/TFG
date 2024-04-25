@@ -146,7 +146,7 @@ namespace Core
             AICmp ai = entityManager.AddComponent(e, new AICmp());
             ai.DecisionTree = new TargetChangerDecisionNode(
                 new NearestEntitySelector(EntityTags.Player),
-                new StraightDashSkill(400.0f));
+                new StraightDashESkill(400.0f));
 
             AddHealthCmp(e, 15.0f);
 

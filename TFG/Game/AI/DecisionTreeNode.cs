@@ -8,7 +8,7 @@ namespace AI
 {
     public abstract class DecisionTreeNode
     {
-        public abstract DecisionTreeNode Run(EntityManager<Entity> entityManager,
+        public abstract DecisionTreeNode Run(GameWorld world,
             Entity enemy, AICmp ai);
         
     }
@@ -37,15 +37,15 @@ namespace AI
             this.falseNode = falseNode;
         }
 
-        public override DecisionTreeNode Run(EntityManager<Entity> entityManager,
+        public override DecisionTreeNode Run(GameWorld world,
             Entity enemy, AICmp ai)
         {
-            targetSelector.Select(entityManager, enemy, ai);
+            targetSelector.Select(world, enemy, ai);
 
-            if (condition.IsTrue(entityManager, enemy, ai))
-                return trueNode.Run(entityManager, enemy, ai);
+            if (condition.IsTrue(world, enemy, ai))
+                return trueNode.Run(world, enemy, ai);
             else
-                return falseNode.Run(entityManager, enemy, ai);
+                return falseNode.Run(world, enemy, ai);
         }
     }
 
@@ -60,12 +60,12 @@ namespace AI
             this.node           = node;
         }
 
-        public override DecisionTreeNode Run(EntityManager<Entity> entityManager,
+        public override DecisionTreeNode Run(GameWorld world,
             Entity enemy, AICmp ai)
         {
-            targetSelector.Select(entityManager, enemy, ai);
+            targetSelector.Select(world, enemy, ai);
 
-            return node.Run(entityManager, enemy, ai);
+            return node.Run(world, enemy, ai);
         }
     }
 }

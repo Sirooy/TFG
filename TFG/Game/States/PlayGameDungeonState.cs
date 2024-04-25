@@ -57,18 +57,19 @@ namespace States
         private GameMain game;
         private PlayGameState parentState;
         private SpriteBatch spriteBatch;
+        private EntityManager<Entity> entityManager;
+        private EntityFactory entityFactory;
         private SystemManager updateSystems;
         private SystemManager drawSystems;
-        private EntityManager<Entity> entityManager;
         private CameraController cameraController;
         private DungeonLevel level;
-        private EntityFactory entityFactory;
         private SimpleStateMachine<State> stateMachine;
         private UIContext ui;
         private PlayerGameData playerData;
         private AIData aiData;
         private Entity selectedTarget;
-        private DiceFace selectedDiceRoll;
+        private PlayerSkill selectedDiceRoll;
+        private GameWorld gameWorld;
 
 
         public PlayGameDungeonState(GameMain game, PlayGameState parentState)
@@ -76,49 +77,19 @@ namespace States
             this.game = game;
             this.parentState = parentState;
             this.spriteBatch = game.SpriteBatch;
+            this.entityManager = parentState.EntityManager;
+            this.entityFactory = parentState.EntityFactory;
             this.updateSystems = new SystemManager();
             this.drawSystems = new SystemManager();
-            this.entityManager = parentState.EntityManager;
-            this.entityFactory = new EntityFactory(entityManager, game.Content);
             this.cameraController = new CameraController(parentState.Camera);
             this.level = new DungeonLevel(game.Content);
 
             this.playerData = parentState.PlayerData;
             this.aiData = new AIData();
-
-            playerData.Dices.Add(new Dice(new List<DiceFace>()
-            {
-                new DashDiceFace(1),
-                new DashDiceFace(2),
-                new DashDiceFace(3),
-                new DashDiceFace(4),
-            }, new Color(1.0f, 0.3f, 0.3f)));
-
-            playerData.Dices.Add(new Dice(new List<DiceFace>()
-            {
-                new ProjectileDiceFace(),
-                new ProjectileDiceFace(),
-                new ProjectileDiceFace(),
-                new ProjectileDiceFace(),
-                new ProjectileDiceFace(),
-                new ProjectileDiceFace()
-            }, new Color(0.3f, 1.0f, 0.3f)));
-
-            playerData.Dices.Add(new Dice(new List<DiceFace>()
-            {
-                new KillEntityDiceFace(),
-                new KillEntityDiceFace(),
-                new KillEntityDiceFace(),
-                new KillEntityDiceFace()
-            }, new Color(0.3f, 0.3f, 1.0f)));
-
-            playerData.Dices.Add(new Dice(new List<DiceFace>()
-            {
-                new KillEntityDiceFace(),
-                new KillEntityDiceFace(),
-                new KillEntityDiceFace(),
-                new KillEntityDiceFace()
-            }, new Color(1.0f, 1.0f, 1.0f)));
+            this.gameWorld = new GameWorld();
+            gameWorld.EntityManager = entityManager;
+            gameWorld.Level         = level;
+            gameWorld.Camera        = parentState.Camera;
 
             RegisterUpdateSystems();
             RegisterDrawSystems();
@@ -139,8 +110,8 @@ namespace States
                 new PercentConstraint(0.9f),
                 new PercentConstraint(1.0f),
                 new PercentConstraint(0.1f));
-            UILayout bottomBarLayout = new UILayout(ui,
-                bottomBarConstraints, UILayout.LayoutType.Horizontal);
+            UILayout bottomBarLayout = new UILayout(ui, bottomBarConstraints,
+                LayoutType.Horizontal, LayoutAlign.Start);
             ui.AddElement(bottomBarLayout, "BottomBar");
 
             CreateUIManaBar(bottomBarLayout);
@@ -161,7 +132,8 @@ namespace States
                 new PercentConstraint(0.6f),
                 new PercentConstraint(0.6f));
             UILayout diceLayout = new UILayout(ui, diceLayoutConstraints,
-                UILayout.LayoutType.Vertical, new PercentConstraint(0.025f));
+                LayoutType.Vertical, LayoutAlign.Start, 
+                new PercentConstraint(0.025f));
             ui.AddElement(diceLayout, "DiceLayout");
 
             Constraints numRollsImageConstraints = new Constraints(
@@ -214,7 +186,8 @@ namespace States
                     new PercentConstraint(6.0f),
                     new PercentConstraint(0.8f));
                 UILayout diceFacesLayout = new UILayout(ui, diceFacesLayoutConstraints,
-                    UILayout.LayoutType.Horizontal, new PercentConstraint(0.1f));
+                    LayoutType.Horizontal, LayoutAlign.Start, 
+                    new PercentConstraint(0.1f));
                 diceFacesLayout.IsVisible = false;
                 diceImage.AddElement(diceFacesLayout);
 
@@ -238,7 +211,7 @@ namespace States
                 };
                 diceImage.EventHandler = diceEventHandler;
 
-                foreach (DiceFace face in dice.Faces)
+                foreach (PlayerSkill face in dice.Faces)
                 {
                     Constraints diceFaceImageConstraints = new Constraints(
                         new PixelConstraint(0.0f),
@@ -395,9 +368,6 @@ namespace States
         {
             ContentManager content = game.Content;
 
-            ResetUIDices();
-            CreateUIDices();
-            
             string levelPath = parentState.GetNextLevel();
             level.Load(levelPath, updateSystems.GetSystem<PhysicsSystem>(),
                 entityFactory);
@@ -405,13 +375,44 @@ namespace States
                 level.Width * 0.5f,
                 level.Height * 0.5f);
 
-            int spawnsCount = level.SpawnPoints.Count;
-            int spawnIndex = Random.Shared.Next(spawnsCount);
-            entityFactory.CreatePlayer(PlayerType.Warrior, level.SpawnPoints[spawnIndex]);
-            entityFactory.CreatePlayer(PlayerType.Mage, level.SpawnPoints[(spawnIndex + 1) % spawnsCount]);
-            entityFactory.CreatePlayer(PlayerType.Warrior, level.SpawnPoints[(spawnIndex + 2) % spawnsCount]);
+            // BORRAR
+            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
+            {
+                new DashPlayerSkill(1),
+                new DashPlayerSkill(2),
+                new DashPlayerSkill(3),
+                new DashPlayerSkill(4),
+            }, new Color(1.0f, 0.3f, 0.3f)));
+
+            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
+            {
+                new ProjectilePSkill(),
+                new ProjectilePSkill(),
+                new ProjectilePSkill(),
+                new ProjectilePSkill(),
+                new ProjectilePSkill(),
+                new ProjectilePSkill()
+            }, new Color(0.3f, 1.0f, 0.3f)));
+
+            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
+            {
+                new KillEntityPSkill(),
+                new KillEntityPSkill(),
+                new KillEntityPSkill(),
+                new KillEntityPSkill()
+            }, new Color(0.3f, 0.3f, 1.0f)));
+
+            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
+            {
+                new TestPSkill(),
+            }, new Color(1.0f, 1.0f, 1.0f)));
+
+            ResetUIDices();
+            CreateUIDices();
+            SetPlayersSpawnPositions();
             stateMachine.SetState(State.PlayerRolling);
 
+            DebugDraw.Camera = parentState.Camera;
             DebugLog.Info("OnEnter state: {0}", nameof(PlayGameDungeonState));
         }
 
@@ -423,6 +424,7 @@ namespace States
         public override StateResult Update(GameTime gameTime)
         {
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            gameWorld.Dt = dt;
 
             ui.Update();
             cameraController.Update(dt);
@@ -464,6 +466,21 @@ namespace States
             spriteBatch.End();
 
             return StateResult.StopExecuting;
+        }
+
+        private void SetPlayersSpawnPositions()
+        {
+            int spawnsCount = level.SpawnPoints.Count;
+            int spawnIndex  = Random.Shared.Next(spawnsCount);
+
+            entityManager.ForEachEntity((Entity player) =>
+            {
+                if(player.HasTag(EntityTags.Player))
+                {
+                    player.Position = level.SpawnPoints[spawnIndex];
+                    spawnIndex      = (spawnIndex + 1) % spawnsCount;
+                }
+            });
         }
 
         private void OnEnterPlayerRolling()
@@ -515,7 +532,7 @@ namespace States
             }
         }
 
-        private void AddDiceRoll(DiceFace roll)
+        private void AddDiceRoll(PlayerSkill roll)
         {
             Texture2D diceFaceTexture = game.Content.Load<Texture2D>
                 (GameContent.TexturePath("DiceFaceSpriteSheet"));
@@ -559,6 +576,7 @@ namespace States
 
                 if(selectedTarget != null)
                 {
+                    selectedDiceRoll.Init();
                     playerData.DiceRolls.RemoveAt(index);
                     rollsLayout.RemoveElement(rollsLayout.SelectedElement);
 
@@ -676,7 +694,7 @@ namespace States
                 AICmp ai = aiData.CurrentEnemy.AI;
                 Entity enemy = aiData.CurrentEnemy.Entity;
 
-                DecisionTreeNode skill = ai.DecisionTree.Run(entityManager, enemy, ai);
+                DecisionTreeNode skill = ai.DecisionTree.Run(gameWorld, enemy, ai);
                 aiData.CurrentEnemySkill = skill as EnemySkill;
 
                 CharacterCmp charCmp = entityManager.
@@ -699,7 +717,7 @@ namespace States
 
             if (skill != null)
             {
-                SkillState skillState = skill.Execute(entityManager, enemy, ai);
+                SkillState skillState = skill.Execute(gameWorld, enemy, ai);
 
                 if (skillState == SkillState.Finished)
                     aiData.CurrentEnemySkill = null;

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿using Engine.Graphics;
 using Engine.Ecs;
 
 namespace Core
@@ -6,8 +6,8 @@ namespace Core
     public class GameWorld
     {
         public EntityManager<Entity> EntityManager;
-        public List<Entity> Players;
-        public List<Entity> Enemies;
-        
+        public DungeonLevel Level;
+        public Camera2D Camera;
+        public float Dt;
     }
 }

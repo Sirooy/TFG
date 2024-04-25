@@ -20,6 +20,7 @@ namespace Cmps
         public Rectangle PlatformSourceRect;
         public Rectangle SelectSourceRect;
         public SelectState SelectState;
+        public Color Color;
 
         public CharacterCmp(Texture2D texture)
         {
@@ -27,6 +28,7 @@ namespace Cmps
             this.PlatformSourceRect = new Rectangle(0, 0, 0, 0);
             this.SelectSourceRect   = new Rectangle(0, 0, 0, 0);
             this.SelectState        = SelectState.None;
+            this.Color              = Color.White;
         }
     }
 }

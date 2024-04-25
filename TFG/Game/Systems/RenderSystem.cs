@@ -106,10 +106,10 @@ namespace Systems
                     switch (chara.SelectState)
                     {
                         case SelectState.Selected:
-                            color = new Color(0, 255, 0);
+                            color = new Color((byte)0, (byte)255, (byte)0, color.A);
                             break;
                         case SelectState.Hover:
-                            color = Color.Yellow;
+                            color = new Color((byte)255, (byte)255, (byte)0, color.A);
                             break;
                     }
 
@@ -122,7 +122,7 @@ namespace Systems
                     e.Position.Y - chara.PlatformSourceRect.Height * 0.5f);
 
                 spriteBatch.Draw(chara.PlatformTexture, platformPos,
-                    chara.PlatformSourceRect, Color.White);
+                    chara.PlatformSourceRect, chara.Color);
             });
         }
 

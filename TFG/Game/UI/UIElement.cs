@@ -8,6 +8,19 @@ using Core;
 
 namespace UI
 {
+    public enum LayoutType
+    {
+        Horizontal,
+        Vertical
+    }
+
+    public enum LayoutAlign
+    {
+        Start,
+        Center,
+        End
+    }
+
     public class UIElement
     {
         public const string DEBUG_DRAW_LAYER = "UI";
@@ -388,13 +401,8 @@ namespace UI
 
     public class UILayout : UIElement
     {
-        public enum LayoutType
-        {
-            Horizontal,
-            Vertical
-        }
-
         private LayoutType layoutType;
+        private LayoutAlign layoutAlign;
         private ISizeConstraint marginConstraint;
 
         public LayoutType Type
@@ -405,6 +413,17 @@ namespace UI
                 layoutType = value;
 
                 UpdateChildrenConstraints();
+                UpdateChildrenPositions();
+            }
+        }
+
+        public LayoutAlign Align
+        {
+            get { return layoutAlign; }
+            set
+            {
+                layoutAlign = value;
+
                 UpdateChildrenPositions();
             }
         }
@@ -450,10 +469,12 @@ namespace UI
             { get { return layoutType == LayoutType.Vertical; } }
 
         public UILayout(UIContext context, Constraints constraints, 
-            LayoutType layoutType, ISizeConstraint marginConstraint = null) : 
+            LayoutType layoutType, LayoutAlign layoutAlign, 
+            ISizeConstraint marginConstraint = null) : 
             base(context, constraints)
         {
             this.layoutType       = layoutType;
+            this.layoutAlign      = layoutAlign;
             this.marginConstraint = marginConstraint;
         }
 
@@ -493,7 +514,8 @@ namespace UI
                 if (marginConstraint != null)
                     margin = marginConstraint.GetXValue(this);
 
-                float currentX = position.X;
+                float alignment = CalculateAlignmentPaddingX(margin);
+                float currentX  = position.X + alignment;
                 foreach (UIElement child in children)
                 {
                     Vector2 childPos = child.Position;
@@ -508,7 +530,8 @@ namespace UI
                 if (marginConstraint != null)
                     margin = marginConstraint.GetYValue(this);
 
-                float currentY = position.Y;
+                float alignment = CalculateAlignmentPaddingY(margin);
+                float currentY  = position.Y + alignment;
                 foreach (UIElement child in children)
                 {
                     Vector2 childPos = child.Position;
@@ -517,6 +540,60 @@ namespace UI
 
                     currentY        += child.Size.Y + margin;
                 }
+            }
+        }
+
+        private float CalculateChildrenTotalSizeX(float margin)
+        {
+            //Init the size at -margin to ignore the last element margin
+            float totalSize = -margin;
+
+            foreach (UIElement child in children)
+                totalSize += child.Size.X + margin;
+
+            return totalSize;
+        }
+
+        private float CalculateChildrenTotalSizeY(float margin)
+        {
+            //Init the size at -margin to ignore the last element margin
+            float totalSize = -margin;
+
+            foreach (UIElement child in children)
+                totalSize += child.Size.Y + margin;
+
+            return totalSize;
+        }
+
+        private float CalculateAlignmentPaddingX(float margin)
+        {
+            float totalSize = CalculateChildrenTotalSizeX(margin);
+
+            switch(layoutAlign)
+            {
+                case LayoutAlign.Start:
+                    return 0.0f;
+                case LayoutAlign.Center:
+                    return size.X * 0.5f - totalSize * 0.5f;
+                case LayoutAlign.End:
+                    return size.X - totalSize;
+                default: return 0.0f;
+            }
+        }
+
+        private float CalculateAlignmentPaddingY(float margin)
+        {
+            float totalSize = CalculateChildrenTotalSizeY(margin);
+
+            switch (layoutAlign)
+            {
+                case LayoutAlign.Start:
+                    return 0.0f;
+                case LayoutAlign.Center:
+                    return size.Y * 0.5f - totalSize * 0.5f;
+                case LayoutAlign.End:
+                    return size.Y - totalSize;
+                default: return 0.0f;
             }
         }
     }

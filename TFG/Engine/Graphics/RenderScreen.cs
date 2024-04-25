@@ -87,7 +87,7 @@ namespace Engine.Graphics
             graphicsDevice.SetRenderTarget(null);
             graphicsDevice.Clear(clearColor);
 
-            spriteBatch.Begin(samplerState: sampler);
+            spriteBatch.Begin(samplerState: sampler, blendState: BlendState.Opaque);
             spriteBatch.Draw(renderTarget, destinationRect, null, Color.White);
             spriteBatch.End();
         }
