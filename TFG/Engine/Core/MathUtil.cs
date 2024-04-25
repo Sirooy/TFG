@@ -10,6 +10,7 @@ namespace Engine.Core
         public const float PI2       = PI * 2.0f;
         public const float PI_OVER_2 = PI / 2.0f;
         public const float PI_OVER_4 = PI / 4.0f;
+        public const float EPSILON   = 0.000000001f;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Cross2D(this Vector2 v1, Vector2 v2)
@@ -37,6 +38,12 @@ namespace Engine.Core
 
             return new Vector2(v.X * cos - v.Y * sin,
                                v.X * sin + v.Y * cos);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsNearlyZero(this Vector2 v)
+        {
+            return Math.Abs(v.X) < EPSILON && Math.Abs(v.Y) < EPSILON;
         }
     }
 }

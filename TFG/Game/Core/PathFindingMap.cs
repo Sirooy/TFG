@@ -86,18 +86,12 @@ namespace Core
 
         public Tuple<Node, Node> GetStartAndEndNodes(Vector2 from, Vector2 to)
         {
-            int fromX = Math.Clamp((int)(from.X / level.TileSize),
-                0, level.NumTilesX - 1);
-            int fromY = Math.Clamp((int)(from.Y / level.TileSize),
-                0, level.NumTilesY - 1);
-            int toX = Math.Clamp((int)(to.X / level.TileSize),
-                0, level.NumTilesX - 1);
-            int toY = Math.Clamp((int)(to.Y / level.TileSize),
-                0, level.NumTilesY - 1);
+            Point fromTile = level.GetTileCoords(from);
+            Point toTile   = level.GetTileCoords(to);
 
             //Invert the nodes because the path returned is inverted
-            Node fromNode = nodes[toX, toY];
-            Node toNode = nodes[fromX, fromY];
+            Node fromNode = nodes[toTile.X, toTile.Y];
+            Node toNode = nodes[fromTile.X, fromTile.Y];
 
             return new Tuple<Node, Node>(fromNode, toNode);
         }
@@ -110,8 +104,7 @@ namespace Core
                 {
                     byte val         = tiles[x, y];
                     Point arrayPos   = new Point(x, y);
-                    Vector2 worldPos = new Vector2(x * level.TileSize + level.TileSize * 0.5f,
-                                                   y * level.TileSize + level.TileSize * 0.5f);
+                    Vector2 worldPos = level.GetWorldCoords(x, y);
 
                     nodes[x, y] = new Node(currentId, val >= 1, arrayPos, worldPos);
 

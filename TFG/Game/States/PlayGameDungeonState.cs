@@ -71,7 +71,6 @@ namespace States
         private PlayerSkill selectedDiceRoll;
         private GameWorld gameWorld;
 
-
         public PlayGameDungeonState(GameMain game, PlayGameState parentState)
         {
             this.game = game;
@@ -822,6 +821,10 @@ namespace States
                 {
                     ret = false;
                     return;
+                }
+                else
+                {
+                    physics.LinearVelocity = Vector2.Zero;
                 }
             });
 

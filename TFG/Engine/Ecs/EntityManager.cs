@@ -80,7 +80,7 @@ namespace Engine.Ecs
         {
             DebugAssert.Success(entity != null && entity.IsValid,
                 "Cannot remove invalid or null entity");
-
+            
             //Remove all the components
             ulong flags = entity.CmpFlags;
             int index = 0;

@@ -106,10 +106,10 @@ namespace Systems
                     switch (chara.SelectState)
                     {
                         case SelectState.Selected:
-                            color = new Color((byte)0, (byte)255, (byte)0, color.A);
+                            color = new Color((byte)0, (byte)255, (byte)0, chara.Color.A);
                             break;
                         case SelectState.Hover:
-                            color = new Color((byte)255, (byte)255, (byte)0, color.A);
+                            color = new Color((byte)255, (byte)255, (byte)0, chara.Color.A);
                             break;
                     }
 

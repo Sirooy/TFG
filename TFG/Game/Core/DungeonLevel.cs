@@ -8,6 +8,7 @@ using Physics;
 using Microsoft.Xna.Framework.Graphics;
 using static Core.TileMap;
 using System;
+using System.Reflection.Emit;
 
 namespace Core
 {
@@ -39,6 +40,32 @@ namespace Core
             Content        = content;
         }
 
+        public Point GetTileCoords(Vector2 worldCoords)
+        {
+            return new Point(
+                Math.Clamp((int)(worldCoords.X / TileSize), 0, NumTilesX - 1),
+                Math.Clamp((int)(worldCoords.Y / TileSize), 0, NumTilesY - 1)
+            );
+        }
+
+        public Point GetTileCoords(float x, float y)
+        {
+            return GetTileCoords(new Vector2(x, y));
+        }
+
+        public Vector2 GetWorldCoords(Point tileCoords)
+        {
+            return new Vector2(
+                tileCoords.X * TileSize + TileSize * 0.5f,
+                tileCoords.Y * TileSize + TileSize * 0.5f
+            );
+        }
+
+        public Vector2 GetWorldCoords(int x, int y)
+        {
+            return GetWorldCoords(new Point(x, y));
+        }
+
         public void Load(string path, PhysicsSystem physicsSystem, EntityFactory entityFactory)
         {
             Physics = physicsSystem;
@@ -58,7 +85,7 @@ namespace Core
                         GameContent.TexturePath(reader.ReadString()));
                     TileMap.PreEntitiesTiles  = ReadTileLayer(reader, tileset);
                     TileMap.PostEntitiesTiles = ReadTileLayer(reader, tileset);
-                    ReadCollisionLayer(reader, physicsSystem);
+                    ReadCollisionLayer(reader);
                     ReadSpawnPoints(reader);
                     ReadEnemies(reader, entityFactory);
                 }
@@ -92,8 +119,7 @@ namespace Core
             return tiles;
         }
 
-        private void ReadCollisionLayer(BinaryReader reader, 
-            PhysicsSystem physicsSystem)
+        private void ReadCollisionLayer(BinaryReader reader)
         {
             byte[,] tiles = new byte[NumTilesX, NumTilesY];
             
@@ -106,7 +132,7 @@ namespace Core
             }
 
             PathFindingMap.Create(tiles);
-            CollisionMap.Create(tiles, physicsSystem);
+            CollisionMap.Create(tiles);
         }
 
         private void ReadSpawnPoints(BinaryReader reader)

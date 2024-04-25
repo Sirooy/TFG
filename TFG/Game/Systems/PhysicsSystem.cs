@@ -693,7 +693,7 @@ namespace Systems
                 Vector2 tangent = relativeVel - Vector2.Dot(relativeVel,
                     m.Normal) * m.Normal;
 
-                if (tangent == Vector2.Zero) continue;
+                if (tangent.IsNearlyZero()) continue;
                 tangent.Normalize();
 
                 float jf   = -Vector2.Dot(relativeVel, tangent);
@@ -792,8 +792,7 @@ namespace Systems
                 Vector2 tangent = relativeVel - Vector2.Dot(relativeVel,
                     m.Normal) * m.Normal;
 
-                if (tangent == Vector2.Zero)
-                    continue;
+                if (tangent.IsNearlyZero()) continue;
                 tangent.Normalize();
 
                 float jf = -Vector2.Dot(relativeVel, tangent);

@@ -5,6 +5,8 @@ using System.Linq;
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework.Graphics.PackedVector;
+using Engine.Core;
 
 namespace AI
 {
@@ -75,18 +77,121 @@ namespace AI
 
     public class TeleportToTargetESkill : EnemySkill
     {
+        public const float FADE_TIME = 1.0f;
+
+        private enum InternalState
+        {
+            CalculatingTeleportPos,
+            FadingOut,
+            FadingIn
+        }
+
         public float MaxDistance { get; set; }
+        private InternalState internalState;
+        private Vector2 teleportPosition;
+        private float fadeTimer;
 
         public TeleportToTargetESkill(float maxDistance)
         {
-            MaxDistance = maxDistance;
+            MaxDistance      = maxDistance;
+            internalState    = InternalState.CalculatingTeleportPos;
+            teleportPosition = Vector2.Zero;
+            fadeTimer        = FADE_TIME;
         }
 
         public override SkillState Execute(GameWorld world,
             Entity enemy, AICmp ai)
         {
+            EntityManager<Entity> entityManager = world.EntityManager;
+
+            if (internalState == InternalState.CalculatingTeleportPos)
+            {
+                CalculateTeleportPosition(world, enemy, ai);
+
+                internalState = InternalState.FadingOut;
+                fadeTimer     = FADE_TIME;
+            }
+            else if(internalState == InternalState.FadingOut)
+            {
+                fadeTimer -= world.Dt;
+                float t    = MathF.Max(fadeTimer, 0.0f) / FADE_TIME;
+                byte alpha = (byte)(255 * t);
+
+                CharacterCmp character = entityManager.
+                    GetComponent<CharacterCmp>(enemy);
+                character.Color.A = alpha;
+                MSAItemList<SpriteCmp> sprites = entityManager.
+                    GetComponents<SpriteCmp>(enemy);
+                for (int i = 0; i < sprites.Count; ++i)
+                {
+                    sprites[i].Color.A = alpha;
+                }
+
+                if (fadeTimer <= 0.0f)
+                {
+                    fadeTimer      = FADE_TIME;
+                    enemy.Position = teleportPosition;
+                    internalState  = InternalState.FadingIn;
+                }
+            }
+            else if(internalState == InternalState.FadingIn)
+            {
+                fadeTimer -= world.Dt;
+                float t    = 1.0f - (MathF.Max(fadeTimer, 0.0f) / FADE_TIME);
+                byte alpha = (byte)(255 * t);
+
+                CharacterCmp character = entityManager.
+                    GetComponent<CharacterCmp>(enemy);
+                character.Color.A = alpha;
+                MSAItemList<SpriteCmp> sprites = entityManager.
+                    GetComponents<SpriteCmp>(enemy);
+                for (int i = 0; i < sprites.Count; ++i)
+                {
+                    sprites[i].Color.A = alpha;
+                }
+
+                if (fadeTimer <= 0.0f)
+                {
+                    fadeTimer     = FADE_TIME;
+                    internalState = InternalState.CalculatingTeleportPos;
+
+                    return SkillState.Finished;
+                }
+            }
             
-            return SkillState.Finished;
+            return SkillState.Executing;
+        }
+
+        private void CalculateTeleportPosition(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            EntityManager<Entity> entityManager = world.EntityManager;
+
+            float totalRadius = 0.0f;
+            Entity target = ai.CurrentTargets.First();
+
+            if (entityManager.TryGetComponent(target,
+                out ColliderCmp targetCollider))
+            {
+                totalRadius += targetCollider.Collider.BoundingAABB.Width * 0.5f;
+            }
+
+            if (entityManager.TryGetComponent(target,
+                out ColliderCmp enemyCollider))
+            {
+                totalRadius += enemyCollider.Collider.BoundingAABB.Width * 0.5f;
+            }
+
+            Vector2 dir = target.Position - enemy.Position;
+            float distance = dir.Length() - totalRadius;
+            float t = MathF.Min(distance / MaxDistance, 1.0f);
+
+            if (dir.IsNearlyZero())
+                dir = Vector2.UnitX;
+            else
+                dir.Normalize();
+
+            teleportPosition = enemy.Position + dir * MaxDistance * t;
         }
     }
 
@@ -119,8 +224,6 @@ namespace AI
                 else
                     hasCalculatedPath = true;
             }
-
-
 
             return SkillState.Finished;
         }
