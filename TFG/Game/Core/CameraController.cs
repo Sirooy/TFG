@@ -11,8 +11,8 @@ namespace Core
 {
     public class CameraController
     {
-        public const float MinZoom  = 1.0f;
-        public const float MaxZoom  = 5.0f;
+        public const float MinZoom  = 2.0f;
+        public const float MaxZoom  = 10.0f;
         public const float ZoomStep = 0.5f;
 
         private Camera2D camera;
@@ -25,11 +25,12 @@ namespace Core
 
         public CameraController(Camera2D camera)
         {
-            this.camera = camera;
-            this.targetZoom = MinZoom;
-            this.dragStartPosition = Vector2.Zero;
+            this.camera                 = camera;
+            this.camera.Zoom            = MinZoom;
+            this.targetZoom             = MinZoom;
+            this.dragStartPosition      = Vector2.Zero;
             this.dragCameraBasePosition = Vector2.Zero;
-            this.isDragging = false;    
+            this.isDragging             = false;
         }
 
         public void Update(float dt)

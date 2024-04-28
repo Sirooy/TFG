@@ -77,7 +77,7 @@ namespace Core
         {
             Vector2 start = target.Position;
             Vector2 end   = target.Position + currentDirection * Power * DISTANCE;
-            spriteBatch.DrawArrow(start, end, 32.0f, new Color(255, 255, 255, 64));
+            spriteBatch.DrawArrow(start, end, 16.0f, new Color(255, 255, 255, 64));
         }
     }
 
@@ -134,7 +134,7 @@ namespace Core
         {
             Vector2 start = target.Position;
             Vector2 end = target.Position + currentDirection * DISTANCE;
-            spriteBatch.DrawArrow(start, end, 16.0f, 
+            spriteBatch.DrawArrow(start, end, 8.0f, 
                 new Color(255, 255, 255, 64));
         }
     }

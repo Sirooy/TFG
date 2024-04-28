@@ -7,10 +7,13 @@ namespace Systems
     public class PreDrawSystem : GameSystem
     {
         private EntityManager<Entity> entityManager;
+        private DungeonLevel level;
 
-        public PreDrawSystem(EntityManager<Entity> entityManager)
+        public PreDrawSystem(EntityManager<Entity> entityManager, 
+            DungeonLevel level)
         {
             this.entityManager = entityManager;
+            this.level         = level;
         }
 
         public override void Update(float _)
@@ -21,9 +24,8 @@ namespace Systems
 
                 if(s.LayerOrder == LayerOrder.Ordered)
                 {
-                    float yPosition = s.Transform.CachedWorldPosition.Y +
-                        s.Origin.Y;
-                    s.LayerDepth = (yPosition / 10000.0f) * 0.5f + 0.5f;
+                    float yPosition = s.Transform.CachedWorldPosition.Y;
+                    s.LayerDepth = (yPosition / (level.Height * 2.0f)) * 0.5f + 0.5f;
                 }
             });
         }

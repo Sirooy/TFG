@@ -102,4 +102,29 @@ namespace UI
                 state = State.Default;
         }
     }
+
+    public class UICheckboxEventHandler : UIButtonEventHandler
+    {
+        public delegate void CheckboxDelegate(UIElement element, bool value);
+
+        public event CheckboxDelegate OnValueChange;
+
+        protected bool value;
+
+        public UICheckboxEventHandler(bool value)
+        {
+            this.value = value;
+        }
+
+        public override void HandleEvents(UIElement element)
+        {
+            base.HandleEvents(element);
+
+            if (mouseIsOver && MouseInput.IsLeftButtonPressed())
+            {
+                value = !value;
+                OnValueChange?.Invoke(element, value);
+            }
+        }
+    }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Engine.Debug;
 using Core;
+using Microsoft.Xna.Framework;
 
 namespace Cmps
 {
@@ -57,10 +58,20 @@ namespace Cmps
                 DebugLog.Warning("Trying to play unknow animation \"{0}\"", name);
             }
         }
+        public void AddAnimation(SpriteAnimation animation)
+        {
+            animations.Add(animation.Name, animation);
+        }
 
         public void AddAnimation(string name, SpriteAnimation animation)
         {
             animations.Add(name, animation);
+        }
+
+        public void AddAnimations(List<SpriteAnimation> anims)
+        {
+            foreach (SpriteAnimation animation in anims)
+                animations.Add(animation.Name, animation);
         }
 
         public void SetLooping(bool loop)
@@ -77,6 +88,11 @@ namespace Cmps
                 PlayState |= AnimationPlayState.Reverse;
             else
                 PlayState &= (~AnimationPlayState.Reverse);
+        }
+
+        public Rectangle GetCurrentFrameSource()
+        {
+            return CurrentAnimation.Frames[CurrentFrameIndex].Source;
         }
     }
 }

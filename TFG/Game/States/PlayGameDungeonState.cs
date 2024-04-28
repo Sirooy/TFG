@@ -343,8 +343,9 @@ namespace States
             updateSystems.RegisterSystem(new PhysicsSystem(entityManager,
                 Vector2.Zero, 1.0f / 60.0f));
             updateSystems.RegisterSystem(new SpriteAnimationSystem(entityManager));
-            updateSystems.RegisterSystem(new PreDrawSystem(entityManager));
+            updateSystems.RegisterSystem(new PreDrawSystem(entityManager, level));
             updateSystems.RegisterSystem(new HealthSystem(entityManager));
+            updateSystems.RegisterSystem(new DeathSystem(gameWorld));
 
             PhysicsSystem physiscSystem = updateSystems.GetSystem<PhysicsSystem>();
             physiscSystem.Iterations = 1;
@@ -354,12 +355,16 @@ namespace States
             updateSystems.EnableSystem<SpriteAnimationSystem>();
             updateSystems.EnableSystem<PreDrawSystem>();
             updateSystems.EnableSystem<HealthSystem>();
+            updateSystems.EnableSystem<DeathSystem>();
         }
 
         private void RegisterDrawSystems()
         {
+            SpriteFont mainFont = game.Content.Load<SpriteFont>(
+                GameContent.FontPath("MainFont"));
+
             drawSystems.RegisterSystem(new RenderSystem(entityManager,
-                spriteBatch, parentState.Camera));
+                spriteBatch, parentState.Camera, mainFont));
             drawSystems.EnableSystem<RenderSystem>();
         }
 
@@ -422,7 +427,7 @@ namespace States
 
         public override StateResult Update(GameTime gameTime)
         {
-            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            float dt     = (float)gameTime.ElapsedGameTime.TotalSeconds;
             gameWorld.Dt = dt;
 
             ui.Update();
@@ -756,58 +761,6 @@ namespace States
             return count == 0;
         }
 
-        //BORRAR
-        private void CreatePlayer(Vector2 position)
-        {
-            Texture2D platformTexture = game.Content.Load<Texture2D>(
-                GameContent.TexturePath("EntityPlatform"));
-            Texture2D playerTexture = game.Content.Load<Texture2D>(
-                GameContent.TexturePath("PlayerSpriteSheet"));
-
-            Vector2 pos = position;
-            Entity e = entityManager.CreateEntity();
-            e.AddTag(EntityTags.Player);
-
-            e.Position = pos;
-            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Inertia = 0.0f;
-            phy.LinearDamping = 1.5f;
-            ColliderCmp col = entityManager.AddComponent(e, new ColliderCmp(
-                new CircleCollider(16.0f), new Material(1.0f, 0.0f, 0.0f),
-                CollisionBitmask.Player, CollisionBitmask.All));
-            SpriteCmp playerSpr = entityManager.AddComponent(e,
-                new SpriteCmp(playerTexture));
-            playerSpr.SourceRect = new Rectangle(0, 0, 48, 40);
-            playerSpr.LayerOrder = LayerOrder.Ordered;
-            playerSpr.Origin = new Vector2(
-                playerSpr.SourceRect.Value.Width * 0.5f,
-                playerTexture.Height);
-
-            CharacterCmp charCmp = entityManager.AddComponent(e,
-                new CharacterCmp(platformTexture));
-            charCmp.PlatformSourceRect = new Rectangle(0, 0, 32, 32);
-            charCmp.SelectSourceRect = new Rectangle(32, 0, 36, 36);
-
-            AnimationControllerCmp anim = entityManager.AddComponent(e,
-                new AnimationControllerCmp(0));
-            anim.AddAnimation("Idle", new SpriteAnimation(new List<Rectangle>()
-            {
-                new Rectangle(0, 0, 48, 40),
-                new Rectangle(48, 0, 48, 40),
-                new Rectangle(96, 0, 48, 40),
-                new Rectangle(144, 0, 48, 40)
-            }, 0.5f));
-            anim.Play("Idle");
-
-            HealthCmp health = entityManager.AddComponent(e, new HealthCmp(20.0f));
-            health.Texture = game.Content.Load<Texture2D>(
-                GameContent.TexturePath("GameplayUI"));
-            health.HealthBorderSourceRect = new Rectangle(
-                0, 32, 64, 16);
-            health.CurrentHealthSourceRect = new Rectangle(
-                0, 48, 48, 16);
-        }
-
         private bool TurnHasFinished()
         {
             bool ret = true;
@@ -825,6 +778,15 @@ namespace States
                 else
                 {
                     physics.LinearVelocity = Vector2.Zero;
+                }
+            });
+
+            entityManager.ForEachComponent((Entity e, DeathCmp death) =>
+            {
+                if(death.State != DeathState.Alive)
+                {
+                    ret = false;
+                    return;
                 }
             });
 

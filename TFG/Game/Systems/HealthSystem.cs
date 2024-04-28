@@ -19,7 +19,13 @@ namespace Systems
             {
                 if(health.CurrentHealth <= 0.0f)
                 {
-                    entityManager.RemoveEntity(e);
+                    if(entityManager.TryGetComponent(e, out DeathCmp death))
+                    {
+                        entityManager.RemoveComponent<HealthCmp>(e);
+                        death.Kill();
+                    }
+                    else
+                        entityManager.RemoveEntity(e);
                 }
             });
         }

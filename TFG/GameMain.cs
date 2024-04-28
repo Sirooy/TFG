@@ -53,7 +53,7 @@ public class GameMain : Game
     {
         DebugLog.Info("Initializing");
 
-        screen      = new RenderScreen(GraphicsDevice, 800, 600);
+        screen      = new RenderScreen(GraphicsDevice, 1024, 720);
         spriteBatch = new SpriteBatch(GraphicsDevice);
         gameStates  = new GameStateStack();
 
@@ -61,8 +61,9 @@ public class GameMain : Game
         DebugTimer.Register("Draw",   50);
         DebugTimer.Register("Physics", 120);
         DebugDraw.Init(GraphicsDevice);
-        DebugDraw.RegisterLayer(PhysicsSystem.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16);
+        DebugDraw.RegisterLayer(PhysicsSystem.DEBUG_DRAW_LAYER, 2.0f, 1.0f, 16);
         DebugDraw.RegisterLayer(UIElement.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16, false);
+        DebugDraw.SetMainLayerData(2.0f, 1.0f, 16);
         DrawUtil.Init(GraphicsDevice, Content);
 
         gameStates.RegisterState(new MainMenuState(this));

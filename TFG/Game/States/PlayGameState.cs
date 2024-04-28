@@ -76,6 +76,7 @@ namespace States
         private void RegisterEntityComponents() 
         {
             entityManager.RegisterComponent<AICmp>();
+            entityManager.RegisterComponent<DeathCmp>();
             entityManager.RegisterComponent<HealthCmp>();
             entityManager.RegisterComponent<ScriptCmp>();
             entityManager.RegisterComponent<SpriteCmp>();

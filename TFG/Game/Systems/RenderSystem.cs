@@ -16,13 +16,15 @@ namespace Systems
         private EntityManager<Entity> entityManager;
         private SpriteBatch spriteBatch;
         private Camera2D camera;
+        private SpriteFont font;
 
         public RenderSystem(EntityManager<Entity> entityManager, 
-            SpriteBatch spriteBatch, Camera2D camera)
+            SpriteBatch spriteBatch, Camera2D camera, SpriteFont font)
         {
             this.entityManager = entityManager;
             this.spriteBatch   = spriteBatch;
             this.camera        = camera;
+            this.font          = font;
         }
 
         public override void Update(float _)
@@ -45,15 +47,22 @@ namespace Systems
         {
             entityManager.ForEachComponent((Entity e, HealthCmp health) =>
             {
-                const float MAX_WIDTH = 32.0f;
-                const float MARGIN    = 4.0f;
+                const float MAX_WIDTH       = 16.0f;
+                const float MAX_TEXT_HEIGHT = 6.0f;
+                const float MARGIN          = 2.0f;
 
+                
                 float borderScale  = MAX_WIDTH / health.HealthBorderSourceRect.Width;
                 float borderHeight = health.HealthBorderSourceRect.Height * borderScale;
                 float healthWidth  = health.CurrentHealthSourceRect.Width * borderScale;
                 float healthHeight = health.CurrentHealthSourceRect.Height * borderScale;
+                string text        = health.CurrentHealth.ToString();
+                Vector2 textSize   = font.MeasureString(text);
+                float textScale    = MAX_TEXT_HEIGHT / textSize.Y;
+                float textWidth    = textSize.X * textScale;
+                float textHeight   = textSize.Y * textScale;
 
-                Vector2 borderPos = Vector2.Zero; 
+                Vector2 borderPos = Vector2.Zero;
                 if (entityManager.TryGetComponent(e, out SpriteCmp sprite))
                 {
                     borderPos = new Vector2(
@@ -66,6 +75,9 @@ namespace Systems
                     borderPos = e.Position - new Vector2(
                         MAX_WIDTH * 0.5f, borderHeight * 0.5f);
                 }
+                Vector2 textPos = new Vector2(
+                    borderPos.X + MAX_WIDTH * 0.5f - textWidth * 0.5f,
+                    borderPos.Y + borderHeight * 0.5f - MAX_TEXT_HEIGHT * 0.5f);
 
                 //Draw border
                 spriteBatch.Draw(health.Texture, borderPos, health.HealthBorderSourceRect,
@@ -85,6 +97,10 @@ namespace Systems
                 spriteBatch.Draw(health.Texture, healthPos, healthSourceRect,
                     new Color(0, 255, 0), 0.0f, Vector2.Zero, borderScale, 
                     SpriteEffects.None, 0.0f);
+
+                //Draw text
+                spriteBatch.DrawString(font, text, textPos, Color.Black,
+                    0.0f, Vector2.Zero, textScale, SpriteEffects.None, 0.0f);
             });
         }
 

@@ -14,7 +14,9 @@ namespace Core
 {
     public enum EnemyType
     {
-        Enemy1
+        Enemy1,
+        Enemy2,
+        Enemy3
     }
 
     public enum AttackType
@@ -31,6 +33,13 @@ namespace Core
         NumTypes
     }
 
+    public enum EntityType
+    {
+        Player,
+        Enemy,
+        Attack
+    }
+
     public class EntityFactory
     {
         private Dictionary<EnemyType, 
@@ -45,12 +54,14 @@ namespace Core
 
         private EntityManager<Entity> entityManager;
         private ContentManager content;
+        private AnimationLoader animationLoader;
 
         public EntityFactory(EntityManager<Entity> entityManager, 
             ContentManager content)
         {
-            this.entityManager = entityManager;
-            this.content       = content;
+            this.entityManager   = entityManager;
+            this.content         = content;
+            this.animationLoader = new AnimationLoader();
 
             CreateFunctionDictionaries();
         }
@@ -109,6 +120,10 @@ namespace Core
             Texture2D enemyTexture    = content.Load<Texture2D>(
                 GameContent.TexturePath("Enemy1SpriteSheet"));
 
+            Entity e = CreateEnemyBaseEntity(position, 
+                "SkeletonSpriteSheet", 15.0f);
+
+            /*
             Entity e   = entityManager.CreateEntity();
             e.Position = position;
             e.AddTag(EntityTags.Enemy);
@@ -117,7 +132,7 @@ namespace Core
             phy.Inertia = 0.0f;
             phy.LinearDamping = 1.5f;
             ColliderCmp col = entityManager.AddComponent(e, new ColliderCmp(
-                new CircleCollider(16.0f), new Material(1.0f, 0.0f, 0.0f),
+                new CircleCollider(8.0f), new Material(1.0f, 0.0f, 0.0f),
                 CollisionBitmask.Enemy, CollisionBitmask.All));
             SpriteCmp enemySpr = entityManager.AddComponent(e,
                 new SpriteCmp(enemyTexture));
@@ -134,7 +149,7 @@ namespace Core
 
             AnimationControllerCmp anim = entityManager.AddComponent(e,
                 new AnimationControllerCmp(0));
-            anim.AddAnimation("Idle", new SpriteAnimation(new List<Rectangle>()
+            anim.AddAnimation("Idle", new SpriteAnimation("Idle", new List<Rectangle>()
             {
                 new Rectangle(0, 0, 48, 40),
                 new Rectangle(48, 0, 48, 40),
@@ -142,13 +157,12 @@ namespace Core
                 new Rectangle(144, 0, 48, 40)
             }, 0.5f));
             anim.Play("Idle");
+            */
 
             AICmp ai = entityManager.AddComponent(e, new AICmp());
             ai.DecisionTree = new TargetChangerDecisionNode(
                 new NearestEntitySelector(EntityTags.Player),
-                new TeleportToTargetESkill(100.0f));
-
-            AddHealthCmp(e, 15.0f);
+                new PathFollowESkill(100.0f));
 
             return e;
         }
@@ -201,7 +215,7 @@ namespace Core
 
             AnimationControllerCmp anim = entityManager.AddComponent(e,
                 new AnimationControllerCmp(0));
-            anim.AddAnimation("Default", new SpriteAnimation(new List<Rectangle>()
+            anim.AddAnimation("Default", new SpriteAnimation("Default", new List<Rectangle>()
             {
                 new Rectangle(0, 0, 35, 17),
                 new Rectangle(35, 0, 35, 17),
@@ -218,82 +232,22 @@ namespace Core
 
         private Entity CreatePlayerWarrior(Vector2 position)
         {
-            Texture2D playerTexture = content.Load<Texture2D>(
-                GameContent.TexturePath("PlayerSpriteSheet"));
-            Entity e = CreatePlayerBase(position, 20.0f);
+            Entity e = CreatePlayerBaseEntity(position, 
+                "WarriorSpriteSheet", 20.0f);
 
-            SpriteCmp sprite = entityManager.AddComponent(e,
-                new SpriteCmp(playerTexture));
-            sprite.SourceRect = new Rectangle(0, 0, 48, 40);
-            sprite.LayerOrder = LayerOrder.Ordered;
-            sprite.Origin = new Vector2(
-                sprite.SourceRect.Value.Width * 0.5f,
-                playerTexture.Height);
-
-            AnimationControllerCmp anim = entityManager.AddComponent(e,
-                new AnimationControllerCmp(0));
-            anim.AddAnimation("Idle", new SpriteAnimation(new List<Rectangle>()
-            {
-                new Rectangle(0, 0, 48, 40),
-                new Rectangle(48, 0, 48, 40),
-                new Rectangle(96, 0, 48, 40),
-                new Rectangle(144, 0, 48, 40)
-            }, 0.5f));
-            anim.Play("Idle");
+            //Modify the attacks the player can make
+            //CharacterCmp charCmp = entityManager.GetComponent<CharacterCmp>(e);
 
             return e;
         }
 
         private Entity CreatePlayerMage(Vector2 position)
         {
-            Texture2D playerTexture = content.Load<Texture2D>(
-                GameContent.TexturePath("PlayerSpriteSheet"));
-            Entity e = CreatePlayerBase(position, 20.0f);
+            Entity e = CreatePlayerBaseEntity(position, 
+                "MageSpriteSheet", 20.0f);
 
-            SpriteCmp sprite = entityManager.AddComponent(e,
-                new SpriteCmp(playerTexture));
-            sprite.SourceRect = new Rectangle(0, 0, 48, 40);
-            sprite.LayerOrder = LayerOrder.Ordered;
-            sprite.Origin = new Vector2(
-                sprite.SourceRect.Value.Width * 0.5f,
-                playerTexture.Height);
-
-            AnimationControllerCmp anim = entityManager.AddComponent(e,
-                new AnimationControllerCmp(0));
-            anim.AddAnimation("Idle", new SpriteAnimation(new List<Rectangle>()
-            {
-                new Rectangle(0, 0, 48, 40),
-                new Rectangle(48, 0, 48, 40),
-                new Rectangle(96, 0, 48, 40),
-                new Rectangle(144, 0, 48, 40)
-            }, 0.5f));
-            anim.Play("Idle");
-
-            return e;
-        }
-
-        private Entity CreatePlayerBase(Vector2 position, float health)
-        {
-            Texture2D platformTexture = content.Load<Texture2D>(
-                GameContent.TexturePath("EntityPlatform"));
-
-            Entity e = entityManager.CreateEntity();
-            e.Position = position;
-            e.AddTag(EntityTags.Player);
-
-            PhysicsCmp phy    = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Inertia       = 0.0f;
-            phy.LinearDamping = 1.5f;
-            entityManager.AddComponent(e, new ColliderCmp(
-                new CircleCollider(16.0f), new Material(1.0f, 0.0f, 0.0f),
-                CollisionBitmask.Player, CollisionBitmask.All));
-
-            CharacterCmp charCmp = entityManager.AddComponent(e,
-                new CharacterCmp(platformTexture));
-            charCmp.PlatformSourceRect = new Rectangle(0, 0, 32, 32);
-            charCmp.SelectSourceRect = new Rectangle(32, 0, 36, 36);
-
-            AddHealthCmp(e, health);
+            //Modify the attacks the player can make
+            //CharacterCmp charCmp = entityManager.GetComponent<CharacterCmp>(e);
 
             return e;
         }
@@ -313,6 +267,152 @@ namespace Core
 
             return health;
         }
+
+        private DeathCmp AddCharacterDeathCmp(Entity e)
+        {
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnEnterDeath = (GameWorld world, Entity entity) =>
+            {
+                AnimationControllerCmp anim = world.EntityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+                anim.Play("Death", AnimationPlayState.None);
+
+                SpriteCmp spr = world.EntityManager.
+                    GetComponent<SpriteCmp>(entity);
+                spr.Color     = Color.Red;
+            };
+
+            const float DEATH_TIME = 1.0f;
+            float deathTimer       = DEATH_TIME;
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                EntityManager<Entity> entityManager = world.EntityManager;
+                AnimationControllerCmp anim = entityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                {
+                    deathTimer -= dt;
+
+                    if (deathTimer <= 0.0f)
+                        return DyingState.Kill;
+                    else
+                    {
+                        SpriteCmp spr      = entityManager.
+                            GetComponent<SpriteCmp>(entity);
+                        CharacterCmp chara = entityManager.
+                            GetComponent<CharacterCmp>(entity);
+                        byte alpha = (byte)((deathTimer / DEATH_TIME) * byte.MaxValue);
+
+                        spr.Color.A   = alpha;
+                        chara.Color.A = alpha;
+
+                        return DyingState.KeepAlive;
+                    }
+                }
+                else
+                    return DyingState.KeepAlive;
+            };
+
+            return death;
+        }
+
+        private Entity CreateEnemyBaseEntity(Vector2 position, 
+            string textureName, float health)
+        {
+            Texture2D platformTexture = content.Load<Texture2D>(
+                GameContent.TexturePath("EntityPlatform"));
+            Texture2D spriteTexture   = content.Load<Texture2D>(
+                GameContent.TexturePath(textureName));
+
+            Entity e   = entityManager.CreateEntity();
+            e.Position = position;
+            e.AddTag(EntityTags.Enemy);
+
+            //Physics
+            PhysicsCmp phy    = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Inertia       = 0.0f;
+            phy.LinearDamping = 1.5f;
+
+            //Collision
+            entityManager.AddComponent(e, new ColliderCmp(
+                new CircleCollider(8.0f), new Material(1.0f, 0.0f, 0.0f),
+                CollisionBitmask.Enemy, CollisionBitmask.All));
+
+            //Animation
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                "../../../Content/Animations/Character.anim"));
+            anim.Play("Idle");
+
+            SpriteCmp spr  = entityManager.AddComponent(e,
+                new SpriteCmp(spriteTexture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin     = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height);
+
+            CharacterCmp charCmp = entityManager.AddComponent(e,
+                new CharacterCmp(platformTexture));
+            charCmp.PlatformSourceRect = new Rectangle(16, 0, 16, 16);
+            charCmp.SelectSourceRect   = new Rectangle(32, 0, 20, 20);
+
+            AddHealthCmp(e, health);
+            AddCharacterDeathCmp(e);
+
+            return e;
+        }
+
+        private Entity CreatePlayerBaseEntity(Vector2 position, 
+            string textureName, float health)
+        {
+            Texture2D platformTexture = content.Load<Texture2D>(
+                GameContent.TexturePath("EntityPlatform"));
+            Texture2D spriteTexture = content.Load<Texture2D>(
+                GameContent.TexturePath(textureName));
+
+            Entity e = entityManager.CreateEntity();
+            e.Position = position;
+            e.AddTag(EntityTags.Player);
+
+            //Physics
+            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Inertia = 0.0f;
+            phy.LinearDamping = 1.5f;
+
+            //Collision
+            entityManager.AddComponent(e, new ColliderCmp(
+                new CircleCollider(8.0f), new Material(1.0f, 0.0f, 0.0f),
+                CollisionBitmask.Player, CollisionBitmask.All));
+
+            //Animation
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                "../../../Content/Animations/Character.anim"));
+            anim.Play("Idle");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(spriteTexture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height);
+
+            CharacterCmp charCmp = entityManager.AddComponent(e,
+                new CharacterCmp(platformTexture));
+            charCmp.PlatformSourceRect = new Rectangle(0, 0, 16, 16);
+            charCmp.SelectSourceRect   = new Rectangle(32, 0, 20, 20);
+
+            AddHealthCmp(e, health);
+            AddCharacterDeathCmp(e);
+
+            return e;
+        }
+
         #endregion
     }
 }
