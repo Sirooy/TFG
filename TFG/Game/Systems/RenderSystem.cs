@@ -29,9 +29,14 @@ namespace Systems
 
         public override void Update(float _)
         {
-            spriteBatch.Begin(camera, sortMode: SpriteSortMode.FrontToBack, 
-                samplerState: SamplerState.PointClamp, blendState: BlendState.NonPremultiplied);
+            spriteBatch.Begin(camera, samplerState: SamplerState.PointClamp, 
+                blendState: BlendState.NonPremultiplied);
             DrawCharacterCmps();
+            spriteBatch.End();
+
+            spriteBatch.Begin(camera, sortMode: SpriteSortMode.FrontToBack, 
+                samplerState: SamplerState.PointClamp, 
+                blendState: BlendState.NonPremultiplied);
             DrawSpriteCmps();
             spriteBatch.End();
 
@@ -51,7 +56,6 @@ namespace Systems
                 const float MAX_TEXT_HEIGHT = 6.0f;
                 const float MARGIN          = 2.0f;
 
-                
                 float borderScale  = MAX_WIDTH / health.HealthBorderSourceRect.Width;
                 float borderHeight = health.HealthBorderSourceRect.Height * borderScale;
                 float healthWidth  = health.CurrentHealthSourceRect.Width * borderScale;

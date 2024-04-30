@@ -7,6 +7,7 @@ namespace UI
     public abstract class UIEventHandler
     {
         public abstract void HandleEvents(UIElement element);
+        public abstract void OnDisable(UIElement element);
     }
 
     public class UIHoverEventHandler : UIEventHandler
@@ -50,6 +51,15 @@ namespace UI
                     mouseIsOver = false;
                     OnExitHover?.Invoke(element);
                 }
+            }
+        }
+
+        public override void OnDisable(UIElement element)
+        {
+            if(mouseIsOver)
+            {
+                mouseIsOver = false;
+                OnExitHover?.Invoke(element);
             }
         }
     }
@@ -100,6 +110,16 @@ namespace UI
             }
             else
                 state = State.Default;
+        }
+
+        public override void OnDisable(UIElement element)
+        {
+            base.OnDisable(element);
+            
+            if(state == State.Pressed || state == State.Held)
+                OnRelease?.Invoke(element);
+            
+            state = State.Default;
         }
     }
 

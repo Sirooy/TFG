@@ -113,7 +113,6 @@ namespace States
                 LayoutType.Horizontal, LayoutAlign.Start);
             ui.AddElement(bottomBarLayout, "BottomBar");
 
-            CreateUIManaBar(bottomBarLayout);
             CreateUIDiceRollsLayout(bottomBarLayout);
             CreateUIEndTurnButton(bottomBarLayout);
         }
@@ -152,6 +151,23 @@ namespace States
             UIString numRollsString = new UIString(ui, numRollsStringConstraints,
                 uiFont, "0", Color.Black);
             numRollsImage.AddElement(numRollsString, "NumRolls");
+
+            Constraints diceContainerConstraints = new Constraints(
+                new CenterConstraint(),
+                new PixelConstraint(0.0f),
+                new PercentConstraint(1.0f),
+                new PercentConstraint(0.75f));
+            UILayout diceContainer = new UILayout(ui, diceContainerConstraints,
+                new Color(0.7f, 0.7f, 0.7f, 0.5f), LayoutType.Vertical, 
+                LayoutAlign.Center, new PercentConstraint(0.025f));
+            diceLayout.AddElement(diceContainer, "DiceContainer");
+
+            UICheckboxEventHandler numRollsEventHandler = new UICheckboxEventHandler(true);
+            numRollsEventHandler.OnValueChange += (UIElement element, bool value) =>
+            {
+                diceContainer.IsVisible = value;
+            };
+            numRollsImage.EventHandler = numRollsEventHandler;
         }
 
         private void CreateUIDices()
@@ -162,22 +178,22 @@ namespace States
                 (GameContent.TexturePath("DiceFaceSpriteSheet"));
             SpriteFont uiFont = game.Content.Load<SpriteFont>
                 (GameContent.FontPath("MainFont"));
-            UILayout diceLayout = ui.GetElement<UILayout>
-                ("DiceLayout");
+            UILayout diceContainer = ui.GetElement<UILayout>
+                ("DiceContainer");
 
             for (int i = 0; i < playerData.Dices.Count; ++i)
             {
                 Dice dice = playerData.Dices[i];
                 Constraints diceImageConstraints = new Constraints(
-                    new PixelConstraint(0.0f),
+                    new PercentConstraint(0.025f),
                     new PixelConstraint(0.0f),
                     new AspectConstraint(1.0f),
-                    new PercentConstraint(0.15f));
+                    new PercentConstraint(0.2f));
                 UIImage diceImage = new UIImage(ui, diceImageConstraints,
                     diceIconTexture, dice.SourceRect);
                 diceImage.Color   = dice.Color;
                 diceImage.Color.A = 128;
-                diceLayout.AddElement(diceImage);
+                diceContainer.AddElement(diceImage);
 
                 Constraints diceFacesLayoutConstraints = new Constraints(
                     new PercentConstraint(1.2f),
@@ -227,45 +243,9 @@ namespace States
 
         private void ResetUIDices()
         {
-            //Remove everything except the first child (Roll Count)
-            UILayout diceLayout = ui.GetElement<UILayout>
-                ("DiceLayout");
-            diceLayout.RemoveElementRange(1, diceLayout.ChildrenCount - 1);
-        }
-
-        private void CreateUIManaBar(UIElement container)
-        {
-            Texture2D uiTexture = game.Content.Load<Texture2D>(
-                GameContent.TexturePath("UI"));
-            SpriteFont uiFont   = game.Content.Load<SpriteFont>(
-                GameContent.FontPath("MainFont"));
-
-            Constraints manaContainerConstraints = new Constraints(
-               new PixelConstraint(0.0f),
-               new CenterConstraint(),
-               new PercentConstraint(0.1f),
-               new PercentConstraint(1.0f));
-            UIElement manaContainer = new UIElement(ui,
-                manaContainerConstraints);
-            container.AddElement(manaContainer);
-
-            Constraints manaIconConstraints = new Constraints(
-                new CenterConstraint(),
-                new CenterConstraint(),
-                new AspectConstraint(1.0f),
-                new PercentConstraint(0.8f));
-            UIImage manaIcon = new UIImage(ui, manaIconConstraints,
-                uiTexture, new Rectangle(0, 32, 32, 32));
-            manaContainer.AddElement(manaIcon);
-
-            Constraints manaStringConstraints = new Constraints(
-                new CenterConstraint(),
-                new CenterConstraint(),
-                new AspectConstraint(1.0f),
-                new PercentConstraint(0.4f));
-            UIString manaString = new UIString(ui, manaStringConstraints,
-                uiFont, "5/5", Color.White);
-            manaContainer.AddElement(manaString, "ManaString");
+            UILayout diceContainer = ui.GetElement<UILayout>
+                ("DiceContainer");
+            diceContainer.ClearElements();
         }
 
         private void CreateUIDiceRollsLayout(UIElement container)
@@ -273,9 +253,10 @@ namespace States
             Constraints diceRollsConstraints = new Constraints(
                 new PixelConstraint(0.0f),
                 new CenterConstraint(),
-                new PercentConstraint(0.7f),
+                new PercentConstraint(0.75f),
                 new PercentConstraint(1.0f));
             UICardLayout diceRolls = new UICardLayout(ui, diceRollsConstraints);
+            diceRolls.OnDropEvent += OnDropSkill;
             container.AddElement(diceRolls, "DiceRolls");
         }
 
@@ -289,7 +270,7 @@ namespace States
             Constraints endTurnContainerConstraints = new Constraints(
                 new PixelConstraint(0.0f),
                 new CenterConstraint(),
-                new PercentConstraint(0.2f),
+                new PercentConstraint(0.25f),
                 new PercentConstraint(1.0f));
             UIElement endTurnContainer = new UIElement(ui, endTurnContainerConstraints);
             container.AddElement(endTurnContainer);
@@ -299,25 +280,16 @@ namespace States
                 new CenterConstraint(),
                 new PercentConstraint(0.8f),
                 new AspectConstraint(1.0f));
-            UIImage endTurnButton = new UIImage(ui, endTurnButtonConstraints,
-                uiTexture, new Rectangle(0, 0, 128, 32));
+            UIImage endTurnButton = UIUtil.CreateCommonButton(ui,
+                endTurnButtonConstraints, "End Turn", game.Content);
             endTurnContainer.AddElement(endTurnButton);
 
-            Constraints endTurnStringConstraints = new Constraints(
-                new CenterConstraint(),
-                new CenterConstraint(),
-                new AspectConstraint(1.0f),
-                new PercentConstraint(0.5f));
-            UIString endTurnString = new UIString(ui, endTurnStringConstraints,
-                uiFont, "End Turn", Color.White);
-            endTurnButton.AddElement(endTurnString);
-
-            UIButtonEventHandler endTurnButtonEvents = new UIButtonEventHandler();
+            UIButtonEventHandler endTurnButtonEvents = (UIButtonEventHandler)
+                endTurnButton.EventHandler;
             endTurnButtonEvents.OnPress += (UIElement element) =>
             {
                 stateMachine.ChangeState(State.StartingAITurn);
             };
-            endTurnButton.EventHandler = endTurnButtonEvents;
         }
 
         private void CreateStateMachine()
@@ -440,7 +412,7 @@ namespace States
 
         public override StateResult Draw(GameTime gameTime)
         {
-            game.GraphicsDevice.Clear(Color.Black);
+            game.GraphicsDevice.Clear(new Color(24, 20, 37));
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             //Draw pre entities layer
@@ -570,27 +542,63 @@ namespace States
             UICardLayout rollsLayout = ui.GetElement<UICardLayout>
                 ("DiceRolls");
 
-            if(rollsLayout.ElementDropped)
+            if(rollsLayout.SelectedElementChanged)
             {
-                int index = rollsLayout.GetElementIndex(
-                    rollsLayout.SelectedElement);
-
-                selectedDiceRoll = playerData.DiceRolls[index];
-                selectedTarget   = GetDiceRollSelectedTarget();
-
-                if(selectedTarget != null)
-                {
-                    selectedDiceRoll.Init();
-                    playerData.DiceRolls.RemoveAt(index);
-                    rollsLayout.RemoveElement(rollsLayout.SelectedElement);
-
-                    stateMachine.ChangeState(State.ExecutingPlayerTurn);
-                }
+                if(rollsLayout.SelectedElement == null)
+                    ClearCharactersCmpSelectState();
                 else
-                {
-                    selectedDiceRoll = null;
-                }
+                    SetCharactersCmpSelectState();
             }
+        }
+
+        private void ClearCharactersCmpSelectState()
+        {
+            entityManager.ForEachComponent((Entity e, CharacterCmp chara) =>
+            {
+                chara.SelectState = SelectState.None;
+            });
+        }
+
+        private void OnDropSkill(UIElement droppedElement)
+        {
+            UICardLayout diceRolls = ui.GetElement<UICardLayout>
+                ("DiceRolls");
+            int index = diceRolls.GetElementIndex(droppedElement);
+
+            selectedDiceRoll = playerData.DiceRolls[index];
+            selectedTarget = GetDiceRollSelectedTarget();
+
+            if (selectedTarget != null)
+            {
+                ClearCharactersCmpSelectState();
+                selectedDiceRoll.Init();
+                playerData.DiceRolls.RemoveAt(index);
+                diceRolls.RemoveElement(droppedElement);
+
+                stateMachine.ChangeState(State.ExecutingPlayerTurn);
+            }
+            else
+            {
+                selectedDiceRoll = null;
+            }
+        }
+
+        private void SetCharactersCmpSelectState()
+        {
+            UICardLayout rollsLayout = ui.GetElement<UICardLayout>
+                ("DiceRolls");
+
+            int index = rollsLayout.GetElementIndex
+                        (rollsLayout.SelectedElement);
+            PlayerSkill skill = playerData.DiceRolls[index];
+
+            entityManager.ForEachComponent((Entity e, CharacterCmp chara) =>
+            {
+                if (skill.CanUseSkill(chara))
+                {
+                    chara.SelectState = SelectState.Hover;
+                }
+            });
         }
 
         private Entity GetDiceRollSelectedTarget()
@@ -600,7 +608,7 @@ namespace States
 
             entityManager.ForEachComponent((Entity e, CharacterCmp chara) =>
             {
-                if (e.HasTag(EntityTags.Player))
+                if (selectedDiceRoll.CanUseSkill(chara))
                 {
                     ColliderCmp col  = entityManager.GetComponent<ColliderCmp>(e);
                     CircleCollider c = (CircleCollider)col.Collider;

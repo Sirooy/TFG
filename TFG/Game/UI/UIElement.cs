@@ -29,9 +29,9 @@ namespace UI
         protected Vector2 size;
         protected Constraints constraints;
         protected List<UIElement> children;
+        protected bool isVisible;
+        protected bool isEnabled;
         public Color Color;
-        public bool IsVisible;
-        public bool IsEnabled;
 
         public UIContext Context { get; internal set; }
         public UIElement Parent  { get; internal set; }
@@ -47,6 +47,38 @@ namespace UI
         public virtual bool OverridesChildHeightConstraint { get { return false; } }
 
         public int ChildrenCount { get { return children.Count; } } 
+
+        public bool IsVisible
+        {
+            get { return isVisible; }
+            set
+            {
+                if (isVisible == value) return;
+
+                isVisible = value;
+                if (value == false && EventHandler != null)
+                    EventHandler.OnDisable(this);
+
+                //foreach (UIElement child in children)
+                //    child.IsVisible = value;
+            }
+        }
+
+        public bool IsEnabled
+        {
+            get { return isEnabled; }
+            set
+            {
+                if (isEnabled == value) return;
+
+                isEnabled = value;
+                if (value == false && EventHandler != null)
+                    EventHandler.OnDisable(this);
+
+                //foreach (UIElement child in children)
+                //    child.IsEnabled = value;
+            }
+        }
 
         public virtual Vector2 Position 
         { 
@@ -468,6 +500,8 @@ namespace UI
         public override bool OverridesChildYConstraint 
             { get { return layoutType == LayoutType.Vertical; } }
 
+        public bool DrawRectangle { get; set; }
+
         public UILayout(UIContext context, Constraints constraints, 
             LayoutType layoutType, LayoutAlign layoutAlign, 
             ISizeConstraint marginConstraint = null) : 
@@ -476,6 +510,19 @@ namespace UI
             this.layoutType       = layoutType;
             this.layoutAlign      = layoutAlign;
             this.marginConstraint = marginConstraint;
+            this.DrawRectangle    = false;
+        }
+
+        public UILayout(UIContext context, Constraints constraints,
+            Color color, LayoutType layoutType, LayoutAlign layoutAlign,
+            ISizeConstraint marginConstraint = null) :
+            base(context, constraints)
+        {
+            this.Color            = color;
+            this.layoutType       = layoutType;
+            this.layoutAlign      = layoutAlign;
+            this.marginConstraint = marginConstraint;
+            this.DrawRectangle    = true;
         }
 
         public override void AddElement(UIElement element, string name = "")
@@ -596,6 +643,14 @@ namespace UI
                 default: return 0.0f;
             }
         }
+
+        public override void Draw(SpriteBatch spriteBatch)
+        {
+            if (DrawRectangle)
+                spriteBatch.DrawRectangle(position, size, Color);
+
+            base.Draw(spriteBatch);
+        }
     }
 
     public class UICardLayout : UIElement
@@ -606,6 +661,9 @@ namespace UI
             DraggingCard,
             DroppingCard
         }
+
+        public delegate void DropDelegate(UIElement element);
+        public event DropDelegate OnDropEvent;
 
         public override bool OverridesChildXConstraint
             { get { return true; } }
@@ -699,7 +757,10 @@ namespace UI
         private void UpdateDragging()
         {
             if (MouseInput.IsLeftButtonReleased())
+            {
                 state = State.DroppingCard;
+                OnDropEvent?.Invoke(selectedElement);
+            }
             else
                 selectedElement.Position = MouseInput.GetPosition(Context.Screen);
         }
@@ -724,11 +785,27 @@ namespace UI
             if (removed != null)
                 UpdateChildrenPositions();
 
+            if (selectedElement != null && removed == selectedElement)
+                selectedElement = null;
+
             return removed;
         }
 
         public override void RemoveElementRange(int startIndex, int count)
         {
+            if(selectedElement != null)
+            {
+                for (int i = 0; i < count; ++i)
+                {
+                    UIElement element = children[i + startIndex];
+                    if (selectedElement == element)
+                    {
+                        selectedElement = null;
+                        break;
+                    }
+                }
+            }
+
             base.RemoveElementRange(startIndex, count);
             UpdateChildrenPositions();
         }

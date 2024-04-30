@@ -42,8 +42,8 @@ namespace States
             {
                 new CharData(PlayerType.Warrior, new Rectangle(32, 64, 32, 32)),
                 new CharData(PlayerType.Mage,    new Rectangle(64, 64, 32, 32)),
-                new CharData(PlayerType.Type3,   new Rectangle(96, 64, 32, 32)),
-                new CharData(PlayerType.Type4,   new Rectangle(128, 64, 32, 32)),
+                new CharData(PlayerType.Ranger,   new Rectangle(96, 64, 32, 32)),
+                new CharData(PlayerType.Paladin,   new Rectangle(128, 64, 32, 32)),
             };
 
             CreateUI();
@@ -51,7 +51,20 @@ namespace States
 
         private void CreateUI()
         {
+            Texture2D backTexture = game.Content.Load<Texture2D>(
+                GameContent.BackgroundPath("CommonBackground"));
+
             ui = new UIContext(game.Screen);
+
+            //BACKGROUND IMAGE
+            Constraints backgroundConstraints = new Constraints(
+                new CenterConstraint(),
+                new CenterConstraint(),
+                new PercentConstraint(1.0f),
+                new AspectConstraint(1.0f));
+            UIImage background = new UIImage(ui, backgroundConstraints,
+                backTexture, new Rectangle(0, 0, backTexture.Width, backTexture.Height));
+            ui.AddElement(background);
 
             //MAIN LAYOUT
             Constraints mainLayoutConstraints = new Constraints(
@@ -74,15 +87,20 @@ namespace States
         {
             SpriteFont uiFont = game.Content.Load<SpriteFont>(
                 GameContent.FontPath("MainFont"));
+            Texture2D titleTexture = game.Content.Load<Texture2D>(
+                GameContent.TexturePath("CharSelectTitle"));
 
             Constraints titleConstraints = new Constraints(
                new CenterConstraint(),
                new PixelConstraint(0.0f),
                new AspectConstraint(1.0f),
-               new PercentConstraint(0.15f));
-            UIString titleString = new UIString(ui, titleConstraints,
-                uiFont, "Select Character", Color.Black);
-            mainLayout.AddElement(titleString);
+               new PercentConstraint(0.20f));
+            //UIString titleString = new UIString(ui, titleConstraints,
+            //    uiFont, "Select Character", Color.Black);
+            UIImage titleImg = new UIImage(ui, titleConstraints,
+                titleTexture, new Rectangle(0, 0, titleTexture.Width,
+                titleTexture.Height));
+            mainLayout.AddElement(titleImg);
         }
 
         private void CreateUIChars(UILayout mainLayout)
@@ -94,7 +112,7 @@ namespace States
                 new CenterConstraint(),
                 new PixelConstraint(0.0f),
                 new PercentConstraint(0.8f),
-                new PercentConstraint(0.4f));
+                new PercentConstraint(0.35f));
             UILayout charsLayout = new UILayout(ui, charsLayoutConstraints,
                 LayoutType.Horizontal, LayoutAlign.Center, 
                 new PercentConstraint(0.05f));
@@ -200,37 +218,23 @@ namespace States
 
         private void CreateUIStartButton(UILayout mainLayout)
         {
-            Texture2D uiTexture = game.Content.Load<Texture2D>(
-                GameContent.TexturePath("UI"));
-            SpriteFont uiFont = game.Content.Load<SpriteFont>(
-                GameContent.FontPath("MainFont"));
-
             Constraints startButtonConstraints = new Constraints(
                 new CenterConstraint(),
                 new PixelConstraint(0.0f),
                 new AspectConstraint(1.0f),
                 new PercentConstraint(0.1f));
-            UIImage startButton = new UIImage(ui, startButtonConstraints,
-                uiTexture, new Rectangle(0, 0, 128, 32));
+            UIImage startButton = UIUtil.CreateCommonButton(ui, startButtonConstraints,
+                "Start", game.Content);
             mainLayout.AddElement(startButton, "StartButton");
 
-            UIButtonEventHandler startButtonEventHandler = new UIButtonEventHandler();
+            UIButtonEventHandler startButtonEventHandler = (UIButtonEventHandler)
+                startButton.EventHandler;
             startButtonEventHandler.OnPress += (UIElement element) =>
             {
                 CreatePlayerCharacters();
                 parentState.GameStates.PopAllActiveStates();
                 parentState.GameStates.PushState<PlayGameDungeonState>();
             };
-            startButton.EventHandler = startButtonEventHandler;
-
-            Constraints buttonTextConstraints = new Constraints(
-                new CenterConstraint(),
-                new CenterConstraint(),
-                new AspectConstraint(1.0f),
-                new PercentConstraint(0.5f));
-            UIString buttonText = new UIString(ui, buttonTextConstraints,
-                uiFont, "Start", Color.White);
-            startButton.AddElement(buttonText);
         }
 
         public override StateResult Update(GameTime gameTime)

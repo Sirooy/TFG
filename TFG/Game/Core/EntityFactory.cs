@@ -28,8 +28,8 @@ namespace Core
     {
         Warrior,
         Mage,
-        Type3,
-        Type4,
+        Ranger,
+        Paladin,
         NumTypes
     }
 
@@ -84,7 +84,9 @@ namespace Core
                 Func<Vector2, Entity>>
             {
                 { PlayerType.Warrior, CreatePlayerWarrior },
-                { PlayerType.Mage,    CreatePlayerMage }
+                { PlayerType.Mage,    CreatePlayerMage    },
+                { PlayerType.Ranger,  CreatePlayerRanger  },
+                { PlayerType.Paladin, CreatePlayerPaladin }
             };
         }
 
@@ -99,7 +101,7 @@ namespace Core
         public Entity CreatePlayer(PlayerType type, Vector2 position)
         {
             DebugAssert.Success(createPlayerFunctions.ContainsKey(type),
-                "Enemy type not found");
+                "Player type not found");
 
             return createPlayerFunctions[type](position);
         }
@@ -115,49 +117,10 @@ namespace Core
         #region Enemies
         private Entity CreateEnemyEnemy1(Vector2 position)
         {
-            Texture2D platformTexture = content.Load<Texture2D>(
-                GameContent.TexturePath("EntityPlatform"));
-            Texture2D enemyTexture    = content.Load<Texture2D>(
-                GameContent.TexturePath("Enemy1SpriteSheet"));
-
             Entity e = CreateEnemyBaseEntity(position, 
-                "SkeletonSpriteSheet", 15.0f);
-
-            /*
-            Entity e   = entityManager.CreateEntity();
-            e.Position = position;
-            e.AddTag(EntityTags.Enemy);
-
-            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Inertia = 0.0f;
-            phy.LinearDamping = 1.5f;
-            ColliderCmp col = entityManager.AddComponent(e, new ColliderCmp(
-                new CircleCollider(8.0f), new Material(1.0f, 0.0f, 0.0f),
-                CollisionBitmask.Enemy, CollisionBitmask.All));
-            SpriteCmp enemySpr = entityManager.AddComponent(e,
-                new SpriteCmp(enemyTexture));
-            enemySpr.SourceRect = new Rectangle(0, 0, 48, 40);
-            enemySpr.LayerOrder = LayerOrder.Ordered;
-            enemySpr.Origin = new Vector2(
-                enemySpr.SourceRect.Value.Width * 0.5f,
-                enemyTexture.Height);
-
-            CharacterCmp charCmp = entityManager.AddComponent(e,
-                new CharacterCmp(platformTexture));
-            charCmp.PlatformSourceRect = new Rectangle(0, 0, 32, 32);
-            charCmp.SelectSourceRect = new Rectangle(32, 0, 36, 36);
-
-            AnimationControllerCmp anim = entityManager.AddComponent(e,
-                new AnimationControllerCmp(0));
-            anim.AddAnimation("Idle", new SpriteAnimation("Idle", new List<Rectangle>()
-            {
-                new Rectangle(0, 0, 48, 40),
-                new Rectangle(48, 0, 48, 40),
-                new Rectangle(96, 0, 48, 40),
-                new Rectangle(144, 0, 48, 40)
-            }, 0.5f));
-            anim.Play("Idle");
-            */
+                "SkeletonSpriteSheet",
+                CharacterType.Enemy | CharacterType.Normal, 
+                CharacterType.Normal, 15.0f);
 
             AICmp ai = entityManager.AddComponent(e, new AICmp());
             ai.DecisionTree = new TargetChangerDecisionNode(
@@ -233,10 +196,10 @@ namespace Core
         private Entity CreatePlayerWarrior(Vector2 position)
         {
             Entity e = CreatePlayerBaseEntity(position, 
-                "WarriorSpriteSheet", 20.0f);
-
-            //Modify the attacks the player can make
-            //CharacterCmp charCmp = entityManager.GetComponent<CharacterCmp>(e);
+                "WarriorSpriteSheet", 
+                CharacterType.Player | CharacterType.Normal | CharacterType.Warrior,
+                CharacterType.Player | CharacterType.Normal | CharacterType.Warrior, 
+                30.0f);
 
             return e;
         }
@@ -244,10 +207,32 @@ namespace Core
         private Entity CreatePlayerMage(Vector2 position)
         {
             Entity e = CreatePlayerBaseEntity(position, 
-                "MageSpriteSheet", 20.0f);
+                "MageSpriteSheet",
+                CharacterType.Player | CharacterType.Normal | CharacterType.Mage,
+                CharacterType.Player | CharacterType.Normal | CharacterType.Mage, 
+                20.0f);
 
-            //Modify the attacks the player can make
-            //CharacterCmp charCmp = entityManager.GetComponent<CharacterCmp>(e);
+            return e;
+        }
+
+        private Entity CreatePlayerRanger(Vector2 position)
+        {
+            Entity e = CreatePlayerBaseEntity(position,
+                "RangerSpriteSheet",
+                CharacterType.Player | CharacterType.Normal | CharacterType.Ranger,
+                CharacterType.Player | CharacterType.Normal | CharacterType.Ranger,
+                30.0f);
+
+            return e;
+        }
+
+        private Entity CreatePlayerPaladin(Vector2 position)
+        {
+            Entity e = CreatePlayerBaseEntity(position,
+                "PaladinSpriteSheet",
+                CharacterType.Player | CharacterType.Normal | CharacterType.Paladin,
+                CharacterType.Player | CharacterType.Normal | CharacterType.Paladin,
+                40.0f);
 
             return e;
         }
@@ -318,7 +303,8 @@ namespace Core
         }
 
         private Entity CreateEnemyBaseEntity(Vector2 position, 
-            string textureName, float health)
+            string textureName, CharacterType type, CharacterType skills,
+            float health)
         {
             Texture2D platformTexture = content.Load<Texture2D>(
                 GameContent.TexturePath("EntityPlatform"));
@@ -355,7 +341,7 @@ namespace Core
                 spr.SourceRect.Value.Height);
 
             CharacterCmp charCmp = entityManager.AddComponent(e,
-                new CharacterCmp(platformTexture));
+                new CharacterCmp(platformTexture, type, skills));
             charCmp.PlatformSourceRect = new Rectangle(16, 0, 16, 16);
             charCmp.SelectSourceRect   = new Rectangle(32, 0, 20, 20);
 
@@ -366,7 +352,8 @@ namespace Core
         }
 
         private Entity CreatePlayerBaseEntity(Vector2 position, 
-            string textureName, float health)
+            string textureName, CharacterType type, CharacterType skills,
+            float health)
         {
             Texture2D platformTexture = content.Load<Texture2D>(
                 GameContent.TexturePath("EntityPlatform"));
@@ -403,7 +390,7 @@ namespace Core
                 spr.SourceRect.Value.Height);
 
             CharacterCmp charCmp = entityManager.AddComponent(e,
-                new CharacterCmp(platformTexture));
+                new CharacterCmp(platformTexture, type, skills));
             charCmp.PlatformSourceRect = new Rectangle(0, 0, 16, 16);
             charCmp.SelectSourceRect   = new Rectangle(32, 0, 20, 20);
 

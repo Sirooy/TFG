@@ -206,4 +206,70 @@ namespace Core
             spriteBatch.DrawBar(center, length, height, color);
         }
     }
+
+    public static class ChargeCircleMinigame
+    {
+        private static MinigameState state;
+        private static float growSpeed; //Time that it takes for the circle to fully grow
+        private static float currentValue;
+        private static float showResultTime;
+        private static float minRadius;
+        private static float maxRadius;
+        private static Color minColor;
+        private static Color maxColor;
+        private static Color currentColor;
+
+        public static float Radius
+        {
+            get
+            {
+                return minRadius + currentValue * (maxRadius - minRadius);
+            }
+        }
+
+        public static void Init(float growSpeed, float showResultTime,
+            Color minColor, Color maxColor,
+            float minRadius = 1.0f, float maxRadius = 5.0f)
+        {
+            ChargeCircleMinigame.growSpeed      = 1.0f / growSpeed;
+            ChargeCircleMinigame.showResultTime = showResultTime;
+            ChargeCircleMinigame.minColor       = minColor;
+            ChargeCircleMinigame.maxColor       = maxColor;
+            ChargeCircleMinigame.minRadius      = minRadius;
+            ChargeCircleMinigame.maxRadius      = maxRadius;
+
+            currentValue = 0.0f;
+            state = MinigameState.Executing;
+        }
+
+        public static MinigameState Update(float dt)
+        {
+            if (state == MinigameState.Executing)
+            {
+                MinigameUtil.DirectChargeLerp(dt, growSpeed,
+                    minColor, maxColor, ref currentValue,
+                    ref currentColor, ref state);
+            }
+            else if (state == MinigameState.ShowingResult)
+            {
+                showResultTime -= dt;
+                if (showResultTime <= 0.0f)
+                    state = MinigameState.Finished;
+            }
+
+            return state;
+        }
+
+        public static void Draw(SpriteBatch spriteBatch,
+            Vector2 center, float thickness, 
+            Color limitsColor, int points)
+        {
+            spriteBatch.DrawCircle(center, minRadius, thickness,
+                limitsColor, points);
+            spriteBatch.DrawCircle(center, maxRadius, thickness,
+                limitsColor, points);
+            spriteBatch.DrawCircle(center, Radius, thickness,
+                currentColor, points);
+        }
+    }
 }

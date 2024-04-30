@@ -14,21 +14,33 @@ namespace Core
     public abstract class PlayerSkill
     {
         private Rectangle sourceRect;
+        private CharacterType type;
+        private CharacterType canBeUsedByType;
 
-        public Rectangle SourceRect { get { return sourceRect; } }
+        public Rectangle SourceRect           { get { return sourceRect; } }
+        public CharacterType Type             { get { return type; } }
+        public CharacterType CanBeUsedByTypes { get { return canBeUsedByType; } }
 
-        public PlayerSkill(Rectangle sourceRect) 
+        public PlayerSkill(Rectangle sourceRect, CharacterType type, 
+            CharacterType canBeUsedBy) 
         {
-            this.sourceRect = sourceRect;
+            this.sourceRect      = sourceRect;
+            this.type            = type;
+            this.canBeUsedByType = canBeUsedBy;
         }
 
         public virtual void Init() { }
-
         public virtual SkillState Update(float dt, EntityManager<Entity> entityManager,
             EntityFactory entityFactory, Camera2D camera, Entity target) 
             { return SkillState.Finished; }
         public virtual void Draw(SpriteBatch spriteBatch, 
             Entity target) { }
+
+        public bool CanUseSkill(CharacterCmp chara)
+        {
+            return ((chara.Type & canBeUsedByType) != CharacterType.None &&
+                    (chara.CanUseSkillsOfType & type) != CharacterType.None);
+        }
     }
 
     public class DashPlayerSkill : PlayerSkill
@@ -41,7 +53,9 @@ namespace Core
         private float currentTime;
         private Vector2 currentDirection;
 
-        public DashPlayerSkill(int power) : base(new Rectangle(32 + power * 32, 0, 32, 32))
+        public DashPlayerSkill(int power) : base(new Rectangle(32 + power * 32, 0, 32, 32),
+            CharacterType.Normal,
+            CharacterType.Player)
         {
             Power            = power;
             maxAngle         = MathHelper.ToRadians(15.0f);
@@ -89,7 +103,9 @@ namespace Core
         private float currentTime;
         private Vector2 currentDirection;
 
-        public ProjectilePSkill() : base(new Rectangle(8 * 32, 0, 32, 32))
+        public ProjectilePSkill() : base(new Rectangle(8 * 32, 0, 32, 32),
+            CharacterType.Normal,
+            CharacterType.Player)
         {
             maxAngle         = MathHelper.ToRadians(35.0f);
             currentTime      = 0.0f;
@@ -143,13 +159,17 @@ namespace Core
     #region Debug Faces
     public class TestPSkill : PlayerSkill
     {
-        public TestPSkill() : base(new Rectangle(32, 0, 32, 32))
+        public TestPSkill() : base(new Rectangle(32, 0, 32, 32),
+            CharacterType.AllTypes,
+            CharacterType.AllTypes)
             { }
 
         public override void Init()
         {
-            ZigZagArrowMinigame.Init(MathHelper.ToRadians(45.0f),
-                1.0f, 32.0f, 96.0f);
+            //ZigZagArrowMinigame.Init(MathHelper.ToRadians(45.0f),
+            //    1.0f, 32.0f, 96.0f);
+            ChargeCircleMinigame.Init(1.0f, 2.0f, Color.Yellow, Color.Red,
+                16.0f, 32.0f);
         }
 
         public override SkillState Update(float dt, EntityManager<Entity> entityManager,
@@ -160,7 +180,9 @@ namespace Core
             //{
             //    return SkillState.Finished;
             //}
-            ZigZagArrowMinigame.Update(dt, target, camera);
+            //ZigZagArrowMinigame.Update(dt, target, camera);
+            if (ChargeCircleMinigame.Update(dt) == MinigameState.Finished)
+                return SkillState.Finished;
 
             return SkillState.Executing;
         }
@@ -169,14 +191,18 @@ namespace Core
         {
             //ChargeBarMinigame.Draw(spriteBatch, target.Position, 48.0f, 8.0f, 
             //    Color.White);
-            ZigZagArrowMinigame.Draw(spriteBatch, target.Position, 24.0f, 48.0f, 
-                Color.White);
+            //ZigZagArrowMinigame.Draw(spriteBatch, target.Position, 24.0f, 48.0f, 
+            //    Color.White);
+            ChargeCircleMinigame.Draw(spriteBatch, target.Position, 1.0f,
+                Color.White, 32);
         }
     }
 
     public class KillEntityPSkill : PlayerSkill
     {
-        public KillEntityPSkill() : base(new Rectangle(32, 0, 32, 32))
+        public KillEntityPSkill() : base(new Rectangle(32, 0, 32, 32),
+            CharacterType.AllTypes,
+            CharacterType.AllTypes)
             { }
 
         public override SkillState Update(float dt, EntityManager<Entity> entityManager,
@@ -191,7 +217,9 @@ namespace Core
 
     public class FullHealDiceFace : PlayerSkill
     {
-        public FullHealDiceFace() : base(new Rectangle(32, 0, 32, 32))
+        public FullHealDiceFace() : base(new Rectangle(32, 0, 32, 32), 
+            CharacterType.AllTypes, 
+            CharacterType.AllTypes)
             { }
 
         public override SkillState Update(float dt, EntityManager<Entity> entityManager,
