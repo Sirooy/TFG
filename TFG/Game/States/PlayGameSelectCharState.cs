@@ -8,6 +8,7 @@ using Core;
 using System.Net.NetworkInformation;
 using System.Reflection.Metadata;
 using System;
+using Microsoft.Xna.Framework.Media;
 
 namespace States
 {
@@ -31,6 +32,7 @@ namespace States
         private UIContext ui;
         private int[] selectedChars;
         private CharData[] charData;
+        private Song music;
 
         public PlayGameSelectCharState(GameMain game, PlayGameState parentState)
         {
@@ -42,9 +44,11 @@ namespace States
             {
                 new CharData(PlayerType.Warrior, new Rectangle(32, 64, 32, 32)),
                 new CharData(PlayerType.Mage,    new Rectangle(64, 64, 32, 32)),
-                new CharData(PlayerType.Ranger,   new Rectangle(96, 64, 32, 32)),
-                new CharData(PlayerType.Paladin,   new Rectangle(128, 64, 32, 32)),
+                new CharData(PlayerType.Ranger,  new Rectangle(96, 64, 32, 32)),
+                new CharData(PlayerType.Paladin, new Rectangle(128, 64, 32, 32)),
             };
+            this.music = game.Content.Load<Song>(
+                GameContent.MusicPath("SelectCharMusic"));
 
             CreateUI();
         }
@@ -258,6 +262,9 @@ namespace States
 
         public override void OnEnter()
         {
+            MediaPlayer.IsRepeating = true;
+            MediaPlayer.Play(music);
+
             parentState.EntityManager.Clear();
             parentState.PlayerData.Dices.Clear();
 
@@ -297,6 +304,7 @@ namespace States
 
         public override void OnExit()
         {
+            MediaPlayer.Stop();
             DebugLog.Info("OnExit state: {0}", nameof(PlayGameLoseState));
         }
     }

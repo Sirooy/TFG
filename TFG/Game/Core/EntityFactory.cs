@@ -9,13 +9,14 @@ using Engine.Ecs;
 using AI;
 using Cmps;
 using Physics;
+using System.IO;
 
 namespace Core
 {
     public enum EnemyType
     {
-        Enemy1,
-        Enemy2,
+        BlackBat,
+        Skeleton,
         Enemy3
     }
 
@@ -33,11 +34,17 @@ namespace Core
         NumTypes
     }
 
+    public enum EffectType
+    {
+        Slash
+    }
+
     public enum EntityType
     {
         Player,
         Enemy,
-        Attack
+        Attack,
+        Effect
     }
 
     public class EntityFactory
@@ -51,6 +58,9 @@ namespace Core
         private Dictionary<PlayerType,
             Func<Vector2, Entity>>
             createPlayerFunctions;
+        private Dictionary<EffectType,
+            Func<Vector2, Entity>>
+            createEffectFunctions;
 
         private EntityManager<Entity> entityManager;
         private ContentManager content;
@@ -71,7 +81,8 @@ namespace Core
             createEnemyFunctions = new Dictionary<EnemyType,
                 Func<Vector2, Entity>>
             {
-                { EnemyType.Enemy1, CreateEnemyEnemy1 }
+                { EnemyType.BlackBat, CreateEnemySkeleton },
+                { EnemyType.Skeleton, CreateEnemySkeleton }
             };
 
             createAttackFunctions = new Dictionary<AttackType,
@@ -87,6 +98,12 @@ namespace Core
                 { PlayerType.Mage,    CreatePlayerMage    },
                 { PlayerType.Ranger,  CreatePlayerRanger  },
                 { PlayerType.Paladin, CreatePlayerPaladin }
+            };
+
+            createEffectFunctions = new Dictionary<EffectType,
+                Func<Vector2, Entity>>
+            {
+                { EffectType.Slash, CreateEffectSlash },
             };
         }
 
@@ -114,21 +131,49 @@ namespace Core
             return createAttackFunctions[type](position);
         }
 
+        public Entity CreateEffect(EffectType type, Vector2 position)
+        {
+            DebugAssert.Success(createEffectFunctions.ContainsKey(type),
+                "Effect type not found");
+
+            return createEffectFunctions[type](position);
+        }
+
         #region Enemies
-        private Entity CreateEnemyEnemy1(Vector2 position)
+        private Entity CreateEnemyBlackBat(Vector2 position)
         {
             Entity e = CreateEnemyBaseEntity(position, 
-                "SkeletonSpriteSheet",
+                "BlackBatSpriteSheet",
                 CharacterType.Enemy | CharacterType.Normal, 
                 CharacterType.Normal, 15.0f);
 
             AICmp ai = entityManager.AddComponent(e, new AICmp());
-            ai.DecisionTree = new TargetChangerDecisionNode(
+            ai.DecisionTree = new BinaryDecisionNode(
                 new NearestEntitySelector(EntityTags.Player),
-                new PathFollowESkill(100.0f));
+                new IsNearCondition(50.0f),
+                new MeleeAttackESkill(10.0f, Color.Red),
+                new StraightDashESkill(100.0f));
 
             return e;
         }
+
+        private Entity CreateEnemySkeleton(Vector2 position)
+        {
+            Entity e = CreateEnemyBaseEntity(position,
+                "SkeletonSpriteSheet",
+                CharacterType.Enemy | CharacterType.Normal,
+                CharacterType.Normal, 15.0f);
+
+            AICmp ai = entityManager.AddComponent(e, new AICmp());
+            ai.DecisionTree = new BinaryDecisionNode(
+                new NearestEntitySelector(EntityTags.Player),
+                new IsNearCondition(50.0f),
+                new MeleeAttackESkill(5.0f, Color.White),
+                new PathFollowESkill(50.0f, 100.0f));
+
+            return e;
+        }
+
         #endregion
 
         #region Attacks
@@ -239,6 +284,16 @@ namespace Core
 
         #endregion
 
+        #region Effect
+
+        private Entity CreateEffectSlash(Vector2 position)
+        {
+            return CreateEffectBasetEntity(position, 
+                "SlashSpriteSheet", "Slash.anim");
+        }
+
+        #endregion
+
         #region Common
         private HealthCmp AddHealthCmp(Entity e, float maxHealth)
         {
@@ -329,7 +384,7 @@ namespace Core
             AnimationControllerCmp anim = entityManager.AddComponent(e,
                 new AnimationControllerCmp(0));
             anim.AddAnimations(animationLoader.Load(
-                "../../../Content/Animations/Character.anim"));
+                GameContent.AnimationPath("Character.anim")));
             anim.Play("Idle");
 
             SpriteCmp spr  = entityManager.AddComponent(e,
@@ -378,7 +433,7 @@ namespace Core
             AnimationControllerCmp anim = entityManager.AddComponent(e,
                 new AnimationControllerCmp(0));
             anim.AddAnimations(animationLoader.Load(
-                "../../../Content/Animations/Character.anim"));
+                GameContent.AnimationPath("Character.anim")));
             anim.Play("Idle");
 
             SpriteCmp spr = entityManager.AddComponent(e,
@@ -396,6 +451,46 @@ namespace Core
 
             AddHealthCmp(e, health);
             AddCharacterDeathCmp(e);
+
+            return e;
+        }
+
+        private Entity CreateEffectBasetEntity(Vector2 position, 
+            string textureName, string animationName)
+        {
+            Texture2D spriteTexture = content.Load<Texture2D>(
+                GameContent.TexturePath(textureName));
+
+            Entity e   = entityManager.CreateEntity();
+            e.Position = position;
+
+            //Animation
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath(animationName)));
+            anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(spriteTexture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.AlwaysTop;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                AnimationControllerCmp anim = world.EntityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+            death.Kill();
 
             return e;
         }

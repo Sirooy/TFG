@@ -7,6 +7,7 @@ using Engine.Ecs;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Media;
 using Physics;
 using System;
 using System.Collections.Generic;
@@ -42,15 +43,19 @@ namespace States
 
         public class AIData
         {
+            public const float SELECT_MAX_WAIT_TIME = 1.0f;
+
             public List<AIEntity> Enemies;
             public AIEntity CurrentEnemy;
             public EnemySkill CurrentEnemySkill;
+            public float SelectWaitTime;
 
             public AIData()
             {
-                Enemies = new List<AIEntity>();
-                CurrentEnemy = null;
+                Enemies           = new List<AIEntity>();
+                CurrentEnemy      = null;
                 CurrentEnemySkill = null;
+                SelectWaitTime    = SELECT_MAX_WAIT_TIME;
             }
         }
 
@@ -70,6 +75,7 @@ namespace States
         private Entity selectedTarget;
         private PlayerSkill selectedDiceRoll;
         private GameWorld gameWorld;
+        private Song music;
 
         public PlayGameDungeonState(GameMain game, PlayGameState parentState)
         {
@@ -82,14 +88,17 @@ namespace States
             this.drawSystems = new SystemManager();
             this.cameraController = new CameraController(parentState.Camera);
             this.level = new DungeonLevel(game.Content);
+            this.music = game.Content.Load<Song>(
+                GameContent.MusicPath("PlayGameMusic"));
 
             this.playerData = parentState.PlayerData;
             this.aiData = new AIData();
             this.gameWorld = new GameWorld();
             gameWorld.EntityManager = entityManager;
+            gameWorld.EntityFactory = entityFactory;
             gameWorld.Level         = level;
             gameWorld.Camera        = parentState.Camera;
-
+            
             RegisterUpdateSystems();
             RegisterDrawSystems();
             CreateStateMachine();
@@ -343,6 +352,8 @@ namespace States
         public override void OnEnter()
         {
             ContentManager content = game.Content;
+            MediaPlayer.IsRepeating = true;
+            MediaPlayer.Play(music);
 
             string levelPath = parentState.GetNextLevel();
             level.Load(levelPath, updateSystems.GetSystem<PhysicsSystem>(),
@@ -380,7 +391,7 @@ namespace States
 
             playerData.Dices.Add(new Dice(new List<PlayerSkill>()
             {
-                new TestPSkill(),
+                new PathFollowPSkill(),
             }, new Color(1.0f, 1.0f, 1.0f)));
 
             ResetUIDices();
@@ -394,6 +405,7 @@ namespace States
 
         public override void OnExit()
         {
+            MediaPlayer.Stop();
             DebugLog.Info("OnExit state: {0}", nameof(PlayGameDungeonState));
         }
 
@@ -431,7 +443,7 @@ namespace States
             if (stateMachine.CurrentStateKey == State.ExecutingPlayerTurn &&
                 selectedDiceRoll != null)
             {
-                selectedDiceRoll.Draw(spriteBatch, selectedTarget);
+                selectedDiceRoll.Draw(gameWorld, spriteBatch, selectedTarget);
             }
             spriteBatch.End();
 
@@ -660,8 +672,8 @@ namespace States
             }
             else
             {
-                SkillState state = selectedDiceRoll.Update(dt, entityManager,
-                    entityFactory, cameraController.Camera, selectedTarget);
+                SkillState state = selectedDiceRoll.Update(gameWorld, 
+                    selectedTarget);
 
                 CharacterCmp chara = entityManager.GetComponent<CharacterCmp>
                     (selectedTarget);
@@ -702,6 +714,7 @@ namespace States
                 int index = Random.Shared.Next(numEnemies);
                 aiData.CurrentEnemy = aiData.Enemies[index];
                 aiData.Enemies.RemoveAt(index);
+                aiData.SelectWaitTime = AIData.SELECT_MAX_WAIT_TIME;
 
                 AICmp ai = aiData.CurrentEnemy.AI;
                 Entity enemy = aiData.CurrentEnemy.Entity;
@@ -721,11 +734,17 @@ namespace States
             }
         }
 
-        public void UpdateExecutingAITurn(float _)
+        public void UpdateExecutingAITurn(float dt)
         {
             AICmp ai = aiData.CurrentEnemy.AI;
             Entity enemy = aiData.CurrentEnemy.Entity;
             EnemySkill skill = aiData.CurrentEnemySkill;
+
+            if(aiData.SelectWaitTime > 0.0f)
+            {
+                aiData.SelectWaitTime -= dt;
+                return;
+            }
 
             if (skill != null)
             {

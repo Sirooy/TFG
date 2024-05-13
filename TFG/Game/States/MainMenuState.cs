@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Core;
 using Engine.Debug;
@@ -15,14 +16,17 @@ namespace States
         private GameStateStack gameStates;
         private UIContext ui;
         private UIImage[] backgrounds;
+        private Song music;
 
         public MainMenuState(GameMain game) 
         {
             this.game        = game;
             this.spriteBatch = game.SpriteBatch;
             this.gameStates  = game.GameStates;
-            this.backgrounds = new UIImage[2]; 
-
+            this.backgrounds = new UIImage[2];
+            this.music       = game.Content.Load<Song>(
+                GameContent.MusicPath("MainMenuMusic"));
+            
             CreateUI();
         }
 
@@ -36,7 +40,7 @@ namespace States
                 GameContent.TexturePath("GameTitle"));
             SpriteFont uiFont     = game.Content.Load<SpriteFont>(
                 GameContent.FontPath("MainFont"));
-
+            
             ui = new UIContext(game.Screen);
 
             Constraints backgroundConstraints = new Constraints(
@@ -143,12 +147,16 @@ namespace States
 
         public override void OnEnter()
         {
-            DebugDraw.Camera = null;
+            DebugDraw.Camera        = null;
+            MediaPlayer.IsRepeating = true;
+            MediaPlayer.Play(music);
+
             DebugLog.Info("OnEnter state: {0}", nameof(MainMenuState));
         }
 
         public override void OnExit()
         {
+            MediaPlayer.Stop();
             DebugLog.Info("OnExit state: {0}", nameof(MainMenuState));
         }
     }

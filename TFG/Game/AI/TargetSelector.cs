@@ -44,4 +44,36 @@ namespace AI
             ai.CurrentTargets.Add(target);
         }
     }
+
+    public class LessHealthEntitySelector : TargetSelector
+    {
+        private EntityTags tags;
+
+        public LessHealthEntitySelector(EntityTags tags)
+        {
+            this.tags = tags;
+        }
+
+        public override void Select(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            ai.CurrentTargets.Clear();
+
+            float minHealth = float.MaxValue;
+            Entity target   = null;
+            world.EntityManager.ForEachComponent((Entity e, HealthCmp health) =>
+            {
+                if (e.HasTag(tags))
+                {
+                    if(health.CurrentHealth < minHealth)
+                    {
+                        target    = e;
+                        minHealth = health.CurrentHealth;
+                    }
+                }
+            });
+
+            ai.CurrentTargets.Add(target);
+        }
+    }
 }

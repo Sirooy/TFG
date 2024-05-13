@@ -8,6 +8,8 @@ using Engine.Graphics;
 using AI;
 using Cmps;
 using Physics;
+using System.Collections.Generic;
+using TFG.Game.AI;
 
 namespace Core
 {
@@ -30,16 +32,42 @@ namespace Core
         }
 
         public virtual void Init() { }
-        public virtual SkillState Update(float dt, EntityManager<Entity> entityManager,
-            EntityFactory entityFactory, Camera2D camera, Entity target) 
+        public virtual SkillState Update(GameWorld world, Entity target) 
             { return SkillState.Finished; }
-        public virtual void Draw(SpriteBatch spriteBatch, 
+        public virtual void Draw(GameWorld world, SpriteBatch spriteBatch, 
             Entity target) { }
 
         public bool CanUseSkill(CharacterCmp chara)
         {
             return ((chara.Type & canBeUsedByType) != CharacterType.None &&
                     (chara.CanUseSkillsOfType & type) != CharacterType.None);
+        }
+    }
+
+    public class DirectDamagePSkill : PlayerSkill
+    {
+        public float Damage;
+
+        public DirectDamagePSkill(float damage = 5.0f) : 
+                base(new Rectangle(16, 0, 32, 32),
+            CharacterType.Normal,
+            CharacterType.Enemy) 
+        {
+            this.Damage = damage;
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            world.EntityFactory.CreateEffect(EffectType.Slash, 
+                target.Position);
+
+            if(world.EntityManager.TryGetComponent(target, 
+                out HealthCmp health))
+            {
+                health.AddHealth(-Damage);
+            }
+
+            return SkillState.Finished;
         }
     }
 
@@ -63,21 +91,20 @@ namespace Core
             currentDirection = Vector2.Zero;
         }
 
-        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
-            EntityFactory entityFactory, Camera2D camera, Entity target)
+        public override SkillState Update(GameWorld world, Entity target)
         {
-            currentTime += dt;
+            currentTime += world.Dt;
             if (currentTime >= MathUtil.PI2)
                 currentTime -= MathUtil.PI2;
 
             float currentAngle    = MathF.Sin(currentTime * 4.0f) * maxAngle;
             Vector2 baseDirection = Vector2.Normalize(target.Position - 
-                MouseInput.GetPosition(camera));
+                MouseInput.GetPosition(world.Camera));
             currentDirection   = MathUtil.Rotate(baseDirection, currentAngle);
 
             if(MouseInput.IsLeftButtonPressed())
             {
-                PhysicsCmp phy      = entityManager.GetComponent<PhysicsCmp>(target);
+                PhysicsCmp phy      = world.EntityManager.GetComponent<PhysicsCmp>(target);
                 phy.LinearVelocity += Power * DISTANCE * 
                     phy.LinearDamping * currentDirection;
 
@@ -87,11 +114,122 @@ namespace Core
             return SkillState.Executing;
         }
 
-        public override void Draw(SpriteBatch spriteBatch, Entity target) 
+        public override void Draw(GameWorld world, 
+            SpriteBatch spriteBatch, Entity target) 
         {
             Vector2 start = target.Position;
             Vector2 end   = target.Position + currentDirection * Power * DISTANCE;
             spriteBatch.DrawArrow(start, end, 16.0f, new Color(255, 255, 255, 64));
+        }
+    }
+
+    public class PathFollowPSkill : PlayerSkill
+    {
+        private enum InternalState
+        {
+            SelectingPosition,
+            FollowingPosition
+        }
+
+        public float MaxDistance;
+
+        private float speed;
+        private float travelTime;
+        private float maxTravelDistance;
+        private List<Vector2> path;
+        private Vector2 targetPosition;
+        private InternalState internalState;
+
+        public PathFollowPSkill() : base(new Rectangle(32, 0, 32, 32),
+            CharacterType.Normal,
+            CharacterType.Player)
+        {
+            path           = new List<Vector2>();
+            speed          = 50.0f;
+            targetPosition = Vector2.Zero;
+            MaxDistance    = 150.0f;
+        }
+
+        public override void Init()
+        {
+            internalState     = InternalState.SelectingPosition;
+            travelTime        = 0.0f;
+            maxTravelDistance = 0.0f;
+            targetPosition    = Vector2.Zero;
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if(internalState == InternalState.SelectingPosition)
+            {
+                Vector2 mousePos = MouseInput.GetPosition(world.Camera);
+
+                if (MouseInput.IsLeftButtonPressed() && 
+                    PositionIsValid(world, mousePos, target))
+                {
+                    targetPosition    = mousePos;
+                    maxTravelDistance = Vector2.Distance(target.Position, 
+                        targetPosition);
+                    internalState     = InternalState.FollowingPosition;
+                }
+
+                return SkillState.Executing;
+            }
+            else
+            {
+                travelTime          += world.Dt;
+                float travelDistance = travelTime * speed;
+
+                if (world.EntityManager.TryGetComponent(target,
+                    out PhysicsCmp physics))
+                {
+                    world.Level.PathFindingMap.FindPath(path,
+                        target.Position, targetPosition);
+
+                    if (path.Count <= 1 || travelDistance >= maxTravelDistance)
+                    {
+                        physics.LinearVelocity *= 0.5f;
+                        return SkillState.Finished;
+                    }
+
+                    AIUtil.PathFollowing(target, physics, path, speed);
+
+                    return SkillState.Executing;
+                }
+
+                return SkillState.Finished;
+            }
+        }
+
+        public override void Draw(GameWorld world, 
+            SpriteBatch spriteBatch, Entity target)
+        {
+            if(internalState == InternalState.SelectingPosition)
+            {
+                spriteBatch.DrawCircle(target.Position, MaxDistance, 
+                    1.0f, Color.Yellow, 32);
+
+                Vector2 mousePos = MouseInput.GetPosition(world.Camera);
+                Color color      = Color.Red;
+                if(PositionIsValid(world, mousePos, target))
+                    color = new Color(0, 255, 0);
+
+                spriteBatch.DrawCircle(mousePos, 4.0f, 1.0f, 
+                    color, 16);
+            }
+        }
+
+        private bool PositionIsValid(GameWorld world, 
+            Vector2 position, Entity e)
+        {
+            float distSqr = Vector2.DistanceSquared(e.Position, position);
+            if (world.Level.CollisionMap.HasCollision(position) ||
+                distSqr > MaxDistance * MaxDistance)
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 
@@ -112,31 +250,30 @@ namespace Core
             currentDirection = Vector2.Zero;
         }
 
-        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
-            EntityFactory entityFactory, Camera2D camera, Entity target)
+        public override SkillState Update(GameWorld world, Entity target)
         {
-            currentTime += dt;
+            currentTime += world.Dt;
             if (currentTime >= MathUtil.PI2)
                 currentTime -= MathUtil.PI2;
 
             float currentAngle = MathF.Sin(currentTime * 2.0f) * maxAngle;
             Vector2 baseDirection = Vector2.Normalize(target.Position -
-                MouseInput.GetPosition(camera));
+                MouseInput.GetPosition(world.Camera));
             currentDirection = MathUtil.Rotate(baseDirection, currentAngle);
 
             if (MouseInput.IsLeftButtonPressed())
             {
                 Vector2 position = target.Position + currentDirection * 8.0f;
-                Entity projectile = entityFactory.CreateAttack(
+                Entity projectile = world.EntityFactory.CreateAttack(
                     AttackType.Projectile1, position);
                 projectile.Rotation = MathF.Atan2(
                     currentDirection.Y, currentDirection.X);
 
-                TriggerColliderCmp colCmp = entityManager.GetComponent
+                TriggerColliderCmp colCmp = world.EntityManager.GetComponent
                     <TriggerColliderCmp>(projectile);
                 colCmp.AddCollisionMask(CollisionBitmask.Enemy);
 
-                PhysicsCmp physicsCmp = entityManager.GetComponent
+                PhysicsCmp physicsCmp = world.EntityManager.GetComponent
                     <PhysicsCmp>(projectile);
                 physicsCmp.LinearVelocity = currentDirection * 200.0f;
                 
@@ -146,7 +283,8 @@ namespace Core
             return SkillState.Executing;
         }
 
-        public override void Draw(SpriteBatch spriteBatch, Entity target)
+        public override void Draw(GameWorld world, 
+            SpriteBatch spriteBatch, Entity target)
         {
             Vector2 start = target.Position;
             Vector2 end = target.Position + currentDirection * DISTANCE;
@@ -172,8 +310,7 @@ namespace Core
                 16.0f, 32.0f);
         }
 
-        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
-            EntityFactory entityFactory, Camera2D camera, Entity target)
+        public override SkillState Update(GameWorld world, Entity target)
         {
             //MinigameState minigameState = ChargeBarMinigame.Update(dt);
             //if (minigameState == MinigameState.Finished)
@@ -181,13 +318,14 @@ namespace Core
             //    return SkillState.Finished;
             //}
             //ZigZagArrowMinigame.Update(dt, target, camera);
-            if (ChargeCircleMinigame.Update(dt) == MinigameState.Finished)
+            if (ChargeCircleMinigame.Update(world.Dt) == MinigameState.Finished)
                 return SkillState.Finished;
 
             return SkillState.Executing;
         }
 
-        public override void Draw(SpriteBatch spriteBatch, Entity target)
+        public override void Draw(GameWorld world, 
+            SpriteBatch spriteBatch, Entity target)
         {
             //ChargeBarMinigame.Draw(spriteBatch, target.Position, 48.0f, 8.0f, 
             //    Color.White);
@@ -205,10 +343,9 @@ namespace Core
             CharacterType.AllTypes)
             { }
 
-        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
-            EntityFactory entityFactory, Camera2D camera, Entity target)
+        public override SkillState Update(GameWorld world, Entity target)
         { 
-            if(entityManager.TryGetComponent(target, out HealthCmp health))
+            if(world.EntityManager.TryGetComponent(target, out HealthCmp health))
                 health.CurrentHealth = 0.0f;
 
             return SkillState.Finished;
@@ -222,10 +359,9 @@ namespace Core
             CharacterType.AllTypes)
             { }
 
-        public override SkillState Update(float dt, EntityManager<Entity> entityManager,
-            EntityFactory entityFactory, Camera2D camera, Entity target)
+        public override SkillState Update(GameWorld world, Entity target)
         {
-            if (entityManager.TryGetComponent(target, out HealthCmp health))
+            if (world.EntityManager.TryGetComponent(target, out HealthCmp health))
                 health.CurrentHealth = health.MaxHealth;
 
             return SkillState.Finished;

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework.Graphics.PackedVector;
 using Engine.Core;
+using TFG.Game.AI;
 
 namespace AI
 {
@@ -28,9 +29,40 @@ namespace AI
             Entity enemy, AICmp ai);
     }
 
+    public class MeleeAttackESkill : EnemySkill
+    {
+        public float Damage;
+        public Color Color;
+
+        public MeleeAttackESkill(float damage, Color color) 
+        {
+            this.Damage = damage;
+            this.Color  = color;
+        }
+
+        public override SkillState Execute(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            Entity target = ai.CurrentTargets.First();
+
+            if(world.EntityManager.TryGetComponent(target, out HealthCmp health))
+            {
+                health.AddHealth(-Damage);
+            }
+
+            Entity effect    = world.EntityFactory.CreateEffect(
+                EffectType.Slash, target.Position);
+            SpriteCmp sprite = world.EntityManager.GetComponent
+                <SpriteCmp>(effect);
+            sprite.Color     = Color;
+
+            return SkillState.Finished;
+        }
+    }
+
     public class StraightDashESkill : EnemySkill
     {
-        public float MaxDistance { get; set; }
+        public float MaxDistance;
 
         public StraightDashESkill(float maxDistance) 
         {
@@ -86,7 +118,7 @@ namespace AI
             FadingIn
         }
 
-        public float MaxDistance { get; set; }
+        public float MaxDistance;
         private InternalState internalState;
         private Vector2 teleportPosition;
         private float fadeTimer;
@@ -213,53 +245,45 @@ namespace AI
 
     public class PathFollowESkill : EnemySkill
     {
-        public float Speed { get; set; }
+        public float Speed;
+        public float MaxDistance;
         private List<Vector2> path;
+        private float travelTime;
 
-        public PathFollowESkill(float speed)
+        public PathFollowESkill(float speed, float maxDistance)
         {
-            Speed = speed;
-            path  = new List<Vector2>();
+            Speed       = speed;
+            MaxDistance = maxDistance;
+            path        = new List<Vector2>();
+            travelTime  = 0.0f;
         }
 
         public override SkillState Execute(GameWorld world,
             Entity enemy, AICmp ai)
         {
-            const float TARGET_OFFSET = 8.0f;
-
-            EntityManager<Entity> entityManager = world.EntityManager;
-            Entity target                       = ai.CurrentTargets.First();
-
-            world.Level.PathFindingMap.FindPath(path,
-                enemy.Position, target.Position);
-
-            //Already close enough
-            if(path.Count <= 2)
-                return SkillState.Finished;
-
-            Vector2 closestPos = path[0];
-            Vector2 nextPos    = path[1];
-
-            Vector2 toEnemy    = enemy.Position - closestPos;
-            Vector2 direction  = nextPos - closestPos;
-            direction.Normalize();
-
-            float proj            = Vector2.Dot(toEnemy, direction);
-            Vector2 pointAlongDir = closestPos + direction * proj;
-            Vector2 targetPos     = pointAlongDir + direction * TARGET_OFFSET;
-
-            if(entityManager.TryGetComponent(enemy, out PhysicsCmp physics))
+            if(world.EntityManager.TryGetComponent(enemy, 
+                out PhysicsCmp physics))
             {
-                Vector2 forceDir = targetPos - enemy.Position;
-                if (forceDir.IsNearlyZero())
-                    forceDir = Vector2.UnitX;
-                else
-                    forceDir.Normalize();
+                Entity target = ai.CurrentTargets.First();
 
-                physics.LinearVelocity = forceDir * Speed;
+                world.Level.PathFindingMap.FindPath(path,
+                    enemy.Position, target.Position);
+
+                travelTime          += world.Dt;
+                float travelDistance = travelTime * Speed;
+                if (travelDistance >= MaxDistance || path.Count <= 1)
+                {
+                    travelTime              = 0.0f;
+                    physics.LinearVelocity *= 0.2f;
+                    return SkillState.Finished;
+                }
+
+                AIUtil.PathFollowing(enemy, physics, path, Speed);
+
+                return SkillState.Executing;
             }
 
-            return SkillState.Executing;
+            return SkillState.Finished;
         }
     }
 }

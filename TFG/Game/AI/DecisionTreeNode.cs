@@ -30,7 +30,7 @@ namespace AI
         protected DecisionTreeNode falseNode;
 
         public BinaryDecisionNode(TargetSelector targetSelector, Condition condition,
-            DecisionNode trueNode, DecisionNode falseNode) : base(targetSelector)
+            DecisionTreeNode trueNode, DecisionTreeNode falseNode) : base(targetSelector)
         {
             this.condition = condition;
             this.trueNode  = trueNode;
