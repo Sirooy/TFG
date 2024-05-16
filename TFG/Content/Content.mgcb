@@ -237,6 +237,18 @@
 /processorParam:TextureFormat=Color
 /build:Sprites/GameTitle.png
 
+#begin Sprites/HealthEffectSpriteSheet.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Sprites/HealthEffectSpriteSheet.png
+
 #begin Sprites/MageSpriteSheet.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -260,6 +272,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Sprites/PaladinSpriteSheet.png
+
+#begin Sprites/PauseTitle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Sprites/PauseTitle.png
 
 #begin Sprites/PlayerSpriteSheet.png
 /importer:TextureImporter
@@ -309,6 +333,30 @@
 /processorParam:TextureFormat=Color
 /build:Sprites/SlashSpriteSheet.png
 
+#begin Sprites/SwordSpinSpriteSheet.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Sprites/SwordSpinSpriteSheet.png
+
+#begin Sprites/SwordStabSpriteSheet.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Sprites/SwordStabSpriteSheet.png
+
 #begin Sprites/UI.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -332,6 +380,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Sprites/WarriorSpriteSheet.png
+
+#begin Sprites/WaterballSpriteSheet.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Sprites/WaterballSpriteSheet.png
 
 #begin Sprites/YouWinTitle.png
 /importer:TextureImporter

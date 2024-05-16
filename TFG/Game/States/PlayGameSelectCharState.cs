@@ -40,12 +40,11 @@ namespace States
             this.parentState   = parentState;
             this.spriteBatch   = game.SpriteBatch;
             this.selectedChars = new int[3] { -1, -1, -1 };
-            this.charData      = new CharData[4]
+            this.charData      = new CharData[3]
             {
                 new CharData(PlayerType.Warrior, new Rectangle(32, 64, 32, 32)),
                 new CharData(PlayerType.Mage,    new Rectangle(64, 64, 32, 32)),
-                new CharData(PlayerType.Ranger,  new Rectangle(96, 64, 32, 32)),
-                new CharData(PlayerType.Paladin, new Rectangle(128, 64, 32, 32)),
+                new CharData(PlayerType.Ranger,  new Rectangle(96, 64, 32, 32))
             };
             this.music = game.Content.Load<Song>(
                 GameContent.MusicPath("SelectCharMusic"));
@@ -153,7 +152,6 @@ namespace States
         {
             int slotIndex = GetEmptySelectedCharIndex();
             if (slotIndex == -1) return;
-            
 
             CharData data            = charData[index];
             selectedChars[slotIndex] = (int)data.Type;

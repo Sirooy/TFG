@@ -88,9 +88,6 @@ public class GameMain : Game
         DebugTimer.Start("Update");
         Input.Update();
 
-        if (KeyboardInput.IsKeyPressed(Keys.Escape))
-            Exit();
-
         EnableDisableDebugDraw();
         gameStates.Update();
         gameStates.UpdateActiveStates(gameTime);

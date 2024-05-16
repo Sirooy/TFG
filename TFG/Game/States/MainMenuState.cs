@@ -6,6 +6,7 @@ using Engine.Core;
 using Engine.Debug;
 using UI;
 using Core;
+using Microsoft.Xna.Framework.Input;
 
 namespace States
 {
@@ -110,8 +111,11 @@ namespace States
             const float SLIDE_SPEED = 100.0f;
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+            if (KeyboardInput.IsKeyPressed(Keys.Escape))
+                game.Exit();
+
             //Update positions
-            for(int i = 0;i < backgrounds.Length; ++i)
+            for (int i = 0;i < backgrounds.Length; ++i)
             {
                 backgrounds[i].Position -= new Vector2(SLIDE_SPEED * dt, 0.0f);
             }

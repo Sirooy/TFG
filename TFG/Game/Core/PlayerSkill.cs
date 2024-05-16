@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Graphics;
 using Engine.Ecs;
 using Engine.Core;
@@ -8,13 +8,16 @@ using Engine.Graphics;
 using AI;
 using Cmps;
 using Physics;
-using System.Collections.Generic;
-using TFG.Game.AI;
 
 namespace Core
 {
     public abstract class PlayerSkill
     {
+        protected const float CHARGE_BAR_LENGTH = 24.0f;
+        protected const float CHARGE_BAR_HEIGHT = 8.0f;
+        protected const int ICON_SIZE = 48;
+        protected const int ICONS_PER_ROW = 10;
+
         private Rectangle sourceRect;
         private CharacterType type;
         private CharacterType canBeUsedByType;
@@ -31,6 +34,23 @@ namespace Core
             this.canBeUsedByType = canBeUsedBy;
         }
 
+        public PlayerSkill(int sourceIndex, CharacterType type,
+            CharacterType canBeUsedBy)
+        {
+            this.sourceRect = GetIcon(sourceIndex);
+            this.type = type;
+            this.canBeUsedByType = canBeUsedBy;
+        }
+
+        public Rectangle GetIcon(int index)
+        {
+            return new Rectangle(
+                (index % ICONS_PER_ROW) * ICON_SIZE, 
+                (index / ICONS_PER_ROW) * ICON_SIZE, 
+                ICON_SIZE, 
+                ICON_SIZE);
+        }
+
         public virtual void Init() { }
         public virtual SkillState Update(GameWorld world, Entity target) 
             { return SkillState.Finished; }
@@ -42,18 +62,46 @@ namespace Core
             return ((chara.Type & canBeUsedByType) != CharacterType.None &&
                     (chara.CanUseSkillsOfType & type) != CharacterType.None);
         }
+
+        protected static bool PositionIsValid(GameWorld world,
+            Vector2 center, Vector2 position, float maxDistance)
+        {
+            float distSqr = Vector2.DistanceSquared(center, position);
+            if (world.Level.CollisionMap.HasCollision(position) ||
+                distSqr > maxDistance * maxDistance)
+            {
+                return false;
+            }
+
+            return true;
+        }
+        
+        protected static void DrawCircularSelectPosition(GameWorld world, 
+            SpriteBatch spriteBatch, Vector2 position, 
+            float maxDistance, Color circleColor)
+        {
+            spriteBatch.DrawCircle(position, maxDistance,
+                    1.0f, circleColor, 32);
+
+            Vector2 mousePos   = MouseInput.GetPosition(world.Camera);
+            Color pointerColor = Color.Red;
+            if (PositionIsValid(world, position, mousePos, maxDistance))
+                pointerColor = new Color(0, 255, 0);
+
+            spriteBatch.DrawCircle(mousePos, 4.0f, 1.0f,
+                pointerColor, 16);
+        }
     }
 
     public class DirectDamagePSkill : PlayerSkill
     {
         public float Damage;
 
-        public DirectDamagePSkill(float damage = 5.0f) : 
-                base(new Rectangle(16, 0, 32, 32),
+        public DirectDamagePSkill(int level) : base(3 + level,
             CharacterType.Normal,
             CharacterType.Enemy) 
         {
-            this.Damage = damage;
+            this.Damage = level * 3.0f;
         }
 
         public override SkillState Update(GameWorld world, Entity target)
@@ -71,42 +119,65 @@ namespace Core
         }
     }
 
-    public class DashPlayerSkill : PlayerSkill
+    public class DirectHealthPSkill : PlayerSkill
     {
-        public const float DISTANCE = 64.0f;
+        public float Health;
 
-        public int Power;
-
-        private float maxAngle;
-        private float currentTime;
-        private Vector2 currentDirection;
-
-        public DashPlayerSkill(int power) : base(new Rectangle(32 + power * 32, 0, 32, 32),
+        public DirectHealthPSkill(int level) :
+                base(6 + level,
             CharacterType.Normal,
             CharacterType.Player)
         {
-            Power            = power;
-            maxAngle         = MathHelper.ToRadians(15.0f);
-            currentTime      = 0.0f;
-            currentDirection = Vector2.Zero;
+            this.Health = 3.0f * level;
         }
 
         public override SkillState Update(GameWorld world, Entity target)
         {
-            currentTime += world.Dt;
-            if (currentTime >= MathUtil.PI2)
-                currentTime -= MathUtil.PI2;
+            world.EntityFactory.CreateEffect(EffectType.Health,
+                target.Position);
 
-            float currentAngle    = MathF.Sin(currentTime * 4.0f) * maxAngle;
-            Vector2 baseDirection = Vector2.Normalize(target.Position - 
-                MouseInput.GetPosition(world.Camera));
-            currentDirection   = MathUtil.Rotate(baseDirection, currentAngle);
-
-            if(MouseInput.IsLeftButtonPressed())
+            if (world.EntityManager.TryGetComponent(target,
+                out HealthCmp health))
             {
-                PhysicsCmp phy      = world.EntityManager.GetComponent<PhysicsCmp>(target);
-                phy.LinearVelocity += Power * DISTANCE * 
-                    phy.LinearDamping * currentDirection;
+                health.AddHealth(Health);
+            }
+
+            return SkillState.Finished;
+        }
+    }
+
+    #region Movement Skills
+
+    public class DragDashPlayerSkill : PlayerSkill
+    {
+        private const float MIN_DISTANCE = 20.0f;
+        private int levels;
+
+        public DragDashPlayerSkill(int level) : base(
+            -1 + level,
+            CharacterType.Normal,
+            CharacterType.Player)
+        {
+            level  = Math.Clamp(level, 1, 4);
+            levels = level;
+        }
+
+        public override void Init()
+        {
+            ZigZagChargeArrowMinigame.Init(levels, MathHelper.ToRadians(50.0f),
+                1.0f, 0.5f, 8.0f, 24.0f + levels * 4.0f, Color.Yellow, Color.Red);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if(ZigZagChargeArrowMinigame.Update(world.Dt, target, world.Camera) == 
+                MinigameState.Finished)
+            {
+                int level = ZigZagChargeArrowMinigame.CurrentLevel;
+
+                AIUtil.SetEntityDashVelocity(world.EntityManager, target,
+                    ZigZagChargeArrowMinigame.Direction,
+                    MIN_DISTANCE + level * 30.0f);
 
                 return SkillState.Finished;
             }
@@ -117,22 +188,228 @@ namespace Core
         public override void Draw(GameWorld world, 
             SpriteBatch spriteBatch, Entity target) 
         {
-            Vector2 start = target.Position;
-            Vector2 end   = target.Position + currentDirection * Power * DISTANCE;
-            spriteBatch.DrawArrow(start, end, 16.0f, new Color(255, 255, 255, 64));
+            ZigZagChargeArrowMinigame.Draw(spriteBatch,
+                target.Position, 10.0f, MIN_DISTANCE, 24.0f, 6.0f,
+                new Color(255, 255, 255, 128), Color.White);
         }
     }
+
+    public class RotatingDashPlayerSkill : PlayerSkill
+    {
+        private enum InternalState
+        {
+            SelectingDirection,
+            ChargingPower
+        }
+
+        public const float DISTANCE = 64.0f;
+
+        private float rps;
+        private float minDistance;
+        private float maxDistance;
+        private float chargeBarFillSpeed;
+        private InternalState internalState;
+        private Vector2 currentDirection;
+
+        public RotatingDashPlayerSkill(int level) :
+            base(new Rectangle(32 + level * 32, 0, 32, 32),
+            CharacterType.Warrior,
+            CharacterType.Normal)
+        {
+            level = Math.Clamp(level, 1, 4);
+
+            currentDirection   = Vector2.Zero;
+            rps                = 0.8f + level * 0.2f;
+            minDistance        = 20.0f;
+            maxDistance        = 50.0f + level * 35.0f;
+            chargeBarFillSpeed = 1.1f - level * 0.1f;
+
+        }
+
+        public override void Init()
+        {
+            internalState = InternalState.SelectingDirection;
+            currentDirection = Vector2.Zero;
+
+            ChargeBarMinigame.Init(chargeBarFillSpeed, 1.0f,
+                Color.Yellow, Color.Red, minDistance, maxDistance);
+            RotatingArrowMinigame.Init(rps, 0.5f);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if (internalState == InternalState.SelectingDirection)
+            {
+                if (RotatingArrowMinigame.Update(world.Dt) == MinigameState.Finished)
+                {
+                    currentDirection = RotatingArrowMinigame.Direction;
+                    internalState = InternalState.ChargingPower;
+                }
+
+                return SkillState.Executing;
+            }
+            else
+            {
+                if (ChargeBarMinigame.Update(world.Dt) == MinigameState.Finished)
+                {
+                    float currentDistance = ChargeBarMinigame.Value;
+                    AIUtil.SetEntityDashVelocity(world.EntityManager,
+                        target, currentDirection, currentDistance);
+
+                    return SkillState.Finished;
+                }
+
+                return SkillState.Executing;
+            }
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            if (internalState == InternalState.SelectingDirection)
+            {
+                RotatingArrowMinigame.Draw(spriteBatch, target.Position,
+                    12.0f, minDistance, new Color(255, 255, 255, 128));
+            }
+            else if (internalState == InternalState.ChargingPower)
+            {
+                Color arrowColor = ChargeBarMinigame.CurrentColor;
+                arrowColor.A = 128;
+                spriteBatch.DrawArrow(target.Position, target.Position +
+                    currentDirection * ChargeBarMinigame.Value, 10.0f,
+                    arrowColor);
+                ChargeBarMinigame.Draw(spriteBatch, target.Position,
+                    CHARGE_BAR_LENGTH, CHARGE_BAR_HEIGHT, Color.White);
+            }
+        }
+    }
+
+    public class TeleportPSkill : PlayerSkill
+    {
+        private const float FADE_TIME = 1.0f;
+
+        private enum InternalState
+        {
+            ChargingRange,
+            SelectingPosition,
+            FadingOut,
+            FadingIn
+        }
+
+        private float minDistance;
+        private float maxDistance;
+        private float growSpeed;
+        private float currentDistance;
+        private float fadeTimer;
+        private Vector2 targetPosition;
+        private InternalState internalState;
+
+        public TeleportPSkill(int level) : base(new Rectangle(32, 0, 32, 32),
+            CharacterType.Normal,
+            CharacterType.Mage | CharacterType.Enemy)
+        {
+            targetPosition = Vector2.Zero;
+            currentDistance = 0.0f;
+
+            level = Math.Clamp(level, 1, 4);
+            growSpeed = 1.0f + level * 0.25f;
+            minDistance = 20.0f + level * 2.5f;
+            maxDistance = 40.0f + level * 10.0f;
+        }
+
+        public override void Init()
+        {
+            internalState   = InternalState.ChargingRange;
+            currentDistance = 0.0f;
+            targetPosition  = Vector2.Zero;
+            fadeTimer       = FADE_TIME;
+
+            ChargeCircleMinigame.Init(growSpeed, 1.0f, Color.White, Color.Red,
+                minDistance, maxDistance);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if (internalState == InternalState.ChargingRange)
+            {
+                if (ChargeCircleMinigame.Update(world.Dt) == MinigameState.Finished)
+                {
+                    internalState = InternalState.SelectingPosition;
+                    currentDistance = ChargeCircleMinigame.Radius;
+                }
+
+                return SkillState.Executing;
+            }
+            else if (internalState == InternalState.SelectingPosition)
+            {
+                Vector2 mousePos = MouseInput.GetPosition(world.Camera);
+
+                if (MouseInput.IsLeftButtonPressed() &&
+                    PositionIsValid(world, target.Position, mousePos, currentDistance))
+                {
+                    targetPosition = mousePos;
+                    internalState  = InternalState.FadingOut;
+                    fadeTimer      = FADE_TIME;
+                }
+
+                return SkillState.Executing;
+            }
+            else if (internalState == InternalState.FadingOut)
+            {
+                AIUtil.FadeOut(world, target, FADE_TIME, ref fadeTimer);
+
+                if (fadeTimer <= 0.0f)
+                {
+                    fadeTimer       = FADE_TIME;
+                    target.Position = targetPosition;
+                    internalState   = InternalState.FadingIn;
+                }
+
+                return SkillState.Executing;
+            }
+            else
+            {
+                AIUtil.FadeIn(world, target, FADE_TIME, ref fadeTimer);
+
+                if (fadeTimer <= 0.0f)
+                {
+                    return SkillState.Finished;
+                }
+
+                return SkillState.Executing;
+            }
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            if (internalState == InternalState.ChargingRange)
+            {
+                ChargeCircleMinigame.Draw(spriteBatch, target.Position,
+                    1.0f, Color.Purple, 32);
+            }
+            else if (internalState == InternalState.SelectingPosition)
+            {
+                DrawCircularSelectPosition(world, spriteBatch,
+                    target.Position, currentDistance, Color.Yellow);
+            }
+        }
+    }
+    
 
     public class PathFollowPSkill : PlayerSkill
     {
         private enum InternalState
         {
+            ChargingRange,
             SelectingPosition,
             FollowingPosition
         }
 
-        public float MaxDistance;
-
+        private float minDistance;
+        private float maxDistance;
+        private float growSpeed;
+        private float currentDistance;
         private float speed;
         private float travelTime;
         private float maxTravelDistance;
@@ -140,32 +417,53 @@ namespace Core
         private Vector2 targetPosition;
         private InternalState internalState;
 
-        public PathFollowPSkill() : base(new Rectangle(32, 0, 32, 32),
+        public PathFollowPSkill(int level) : 
+            base(9 + level,
             CharacterType.Normal,
-            CharacterType.Player)
+            CharacterType.Ranger)
         {
-            path           = new List<Vector2>();
-            speed          = 50.0f;
-            targetPosition = Vector2.Zero;
-            MaxDistance    = 150.0f;
+            path            = new List<Vector2>();
+            speed           = 50.0f;
+            targetPosition  = Vector2.Zero;
+            currentDistance = 0.0f;
+
+            level = Math.Clamp(level, 1, 4);
+
+            growSpeed   = 1.0f + level * 0.1f;
+            minDistance = 5.0f + level * 5.0f;
+            maxDistance = 83.3f + level * 16.7f;
         }
 
         public override void Init()
         {
-            internalState     = InternalState.SelectingPosition;
+            internalState     = InternalState.ChargingRange;
             travelTime        = 0.0f;
+            currentDistance   = 0.0f;
             maxTravelDistance = 0.0f;
             targetPosition    = Vector2.Zero;
+
+            ChargeCircleMinigame.Init(growSpeed, 1.0f, Color.White, Color.Red, 
+                minDistance, maxDistance);
         }
 
         public override SkillState Update(GameWorld world, Entity target)
         {
-            if(internalState == InternalState.SelectingPosition)
+            if(internalState == InternalState.ChargingRange)
+            {
+                if(ChargeCircleMinigame.Update(world.Dt) == MinigameState.Finished)
+                {
+                    internalState   = InternalState.SelectingPosition;
+                    currentDistance = ChargeCircleMinigame.Radius;
+                }
+
+                return SkillState.Executing;
+            }
+            else if(internalState == InternalState.SelectingPosition)
             {
                 Vector2 mousePos = MouseInput.GetPosition(world.Camera);
 
                 if (MouseInput.IsLeftButtonPressed() && 
-                    PositionIsValid(world, mousePos, target))
+                    PositionIsValid(world, target.Position, mousePos, currentDistance))
                 {
                     targetPosition    = mousePos;
                     maxTravelDistance = Vector2.Distance(target.Position, 
@@ -204,34 +502,192 @@ namespace Core
         public override void Draw(GameWorld world, 
             SpriteBatch spriteBatch, Entity target)
         {
-            if(internalState == InternalState.SelectingPosition)
+            if(internalState == InternalState.ChargingRange)
             {
-                spriteBatch.DrawCircle(target.Position, MaxDistance, 
-                    1.0f, Color.Yellow, 32);
-
-                Vector2 mousePos = MouseInput.GetPosition(world.Camera);
-                Color color      = Color.Red;
-                if(PositionIsValid(world, mousePos, target))
-                    color = new Color(0, 255, 0);
-
-                spriteBatch.DrawCircle(mousePos, 4.0f, 1.0f, 
-                    color, 16);
+                ChargeCircleMinigame.Draw(spriteBatch, target.Position,
+                    1.0f, Color.White, 32);
             }
-        }
-
-        private bool PositionIsValid(GameWorld world, 
-            Vector2 position, Entity e)
-        {
-            float distSqr = Vector2.DistanceSquared(e.Position, position);
-            if (world.Level.CollisionMap.HasCollision(position) ||
-                distSqr > MaxDistance * MaxDistance)
+            else if(internalState == InternalState.SelectingPosition)
             {
-                return false;
+                DrawCircularSelectPosition(world, spriteBatch,
+                    target.Position, currentDistance, Color.Yellow);
             }
-
-            return true;
         }
     }
+
+    #endregion
+
+    #region Ranger
+
+    public class ArrowPSkill : PlayerSkill
+    {
+        private int levels;
+        private float maxDamage;
+
+        public ArrowPSkill(int level) : 
+            base(13 + level,
+            CharacterType.Ranger,
+            CharacterType.Player)
+        {
+            level     = Math.Clamp(level, 1, 3);
+            levels    = level + 1;
+            maxDamage = level * 5.0f;
+        }
+
+        public override void Init()
+        {
+            ZigZagChargeArrowMinigame.Init(levels, MathHelper.ToRadians(25.0f + (levels - 1) * 5.0f),
+                0.75f, 1.0f, 8.0f, 24.0f + levels * 4.0f, Color.Yellow, Color.Red);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if(ZigZagChargeArrowMinigame.Update(world.Dt, target, world.Camera) == 
+                MinigameState.Finished)
+            {
+                Entity arrow = world.EntityFactory.CreateAttack(AttackType.Arrow,
+                    target.Position, 5.0f + ZigZagChargeArrowMinigame.CurrentLevelPower, 
+                    0.0f, CollisionBitmask.Enemy);
+                AIUtil.SetProjectilePosAndVel(world.EntityManager, arrow,
+                    target.Position, ZigZagChargeArrowMinigame.Direction, 150.0f);
+
+                return SkillState.Finished;
+            }
+
+            return SkillState.Executing;
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            ZigZagChargeArrowMinigame.Draw(spriteBatch, target.Position,
+                8.0f, 24.0f, CHARGE_BAR_LENGTH, CHARGE_BAR_HEIGHT,
+                new Color(255, 255, 255, 128), Color.White);
+        }
+    };
+
+    public class HealingArrowPSkill : PlayerSkill
+    {
+        private float rps;
+        private float health;
+
+        public HealingArrowPSkill(int level) : 
+            base(19 + level,
+            CharacterType.Ranger,
+            CharacterType.Player)
+        {
+            level  = Math.Clamp(level, 1, 2);
+            rps    = 0.75f + level * 0.25f;
+            health = 5.0f  + level * 10.0f;
+        }
+
+        public override void Init()
+        {
+            RotatingArrowMinigame.Init(rps, 1.0f);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if(RotatingArrowMinigame.Update(world.Dt) == MinigameState.Finished)
+            {
+                Entity arrow = world.EntityFactory.CreateAttack(AttackType.HealingArrow,
+                    target.Position, health, 0.0f, CollisionBitmask.Player);
+                arrow.Scale  = 0.8f;
+                AIUtil.SetProjectilePosAndVel(world.EntityManager, arrow,
+                    target.Position, RotatingArrowMinigame.Direction, 100.0f);
+
+                return SkillState.Finished;
+            }
+
+            return SkillState.Executing;
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            RotatingArrowMinigame.Draw(spriteBatch, target.Position,
+                8.0f, 16.0f, new Color(255, 255, 255, 128));
+        }
+    }
+
+    public class PullingArrowPSkill : PlayerSkill
+    {
+        private enum InternalState
+        {
+            SelectingDirection,
+            ChargingPower
+        }
+
+        private InternalState internalState;
+        private float minForce;
+        private float maxForce;
+        private float damage;
+
+        public PullingArrowPSkill(int level) : 
+            base(16 + level,
+            CharacterType.Ranger,
+            CharacterType.Player)
+        {
+            level    = Math.Clamp(level, 1, 3);
+            internalState = InternalState.SelectingDirection;
+            minForce      = 2000.0f;
+            maxForce      = minForce + 1000.0f + 2000.0f * level;
+            damage        = 3.0f + level * 2f;
+        }
+
+        public override void Init()
+        {
+            internalState = InternalState.SelectingDirection;
+
+            ZigZagArrowMinigame.Init(0.0f, 1.0f, 0.0f);
+            ChargeBarMinigame.Init(1.0f, 1.0f, Color.Blue, Color.Cyan,
+                minForce, maxForce);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if(internalState == InternalState.SelectingDirection)
+            {
+                if(ZigZagArrowMinigame.Update(world.Dt, target, world.Camera) == 
+                    MinigameState.Finished)
+                {
+                    internalState = InternalState.ChargingPower;
+                }
+
+                return SkillState.Executing;
+            }
+            else
+            {
+                if(ChargeBarMinigame.Update(world.Dt) == MinigameState.Finished)
+                {
+                    Entity arrow = world.EntityFactory.CreateAttack(AttackType.PullingArrow,
+                        target.Position, damage, ChargeBarMinigame.Value, 
+                        CollisionBitmask.Enemy);
+                    AIUtil.SetProjectilePosAndVel(world.EntityManager, arrow,
+                        target.Position, ZigZagArrowMinigame.Direction, 125.0f);
+
+                    return SkillState.Finished;
+                }
+
+                return SkillState.Executing;
+            }
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            ZigZagArrowMinigame.Draw(spriteBatch, target.Position,
+                8.0f, 16.0f, new Color(255, 255, 255, 128));
+
+            if(internalState == InternalState.ChargingPower)
+            {
+                ChargeBarMinigame.Draw(spriteBatch, target.Position,
+                    CHARGE_BAR_LENGTH, CHARGE_BAR_HEIGHT, Color.White);
+            }
+        }
+    }
+
+    #endregion
 
     public class ProjectilePSkill : PlayerSkill
     {
@@ -265,17 +721,11 @@ namespace Core
             {
                 Vector2 position = target.Position + currentDirection * 8.0f;
                 Entity projectile = world.EntityFactory.CreateAttack(
-                    AttackType.Projectile1, position);
-                projectile.Rotation = MathF.Atan2(
-                    currentDirection.Y, currentDirection.X);
+                    AttackType.Arrow, position, 10.0f, 2000.0f, 
+                    CollisionBitmask.Enemy);
 
-                TriggerColliderCmp colCmp = world.EntityManager.GetComponent
-                    <TriggerColliderCmp>(projectile);
-                colCmp.AddCollisionMask(CollisionBitmask.Enemy);
-
-                PhysicsCmp physicsCmp = world.EntityManager.GetComponent
-                    <PhysicsCmp>(projectile);
-                physicsCmp.LinearVelocity = currentDirection * 200.0f;
+                AIUtil.SetProjectileVelocity(world.EntityManager, projectile,
+                    currentDirection);
                 
                 return SkillState.Finished;
             }
@@ -304,10 +754,10 @@ namespace Core
 
         public override void Init()
         {
-            //ZigZagArrowMinigame.Init(MathHelper.ToRadians(45.0f),
-            //    1.0f, 32.0f, 96.0f);
-            ChargeCircleMinigame.Init(1.0f, 2.0f, Color.Yellow, Color.Red,
-                16.0f, 32.0f);
+            ZigZagChargeArrowMinigame.Init(6, MathHelper.ToRadians(45.0f), 1.0f, 
+                1.0f, 16.0f, 48.0f, Color.Yellow, Color.Red);
+            //ChargeCircleMinigame.Init(1.0f, 2.0f, Color.Yellow, Color.Red,
+            //    16.0f, 32.0f);
         }
 
         public override SkillState Update(GameWorld world, Entity target)
@@ -317,9 +767,7 @@ namespace Core
             //{
             //    return SkillState.Finished;
             //}
-            //ZigZagArrowMinigame.Update(dt, target, camera);
-            if (ChargeCircleMinigame.Update(world.Dt) == MinigameState.Finished)
-                return SkillState.Finished;
+            ZigZagChargeArrowMinigame.Update(world.Dt, target, world.Camera);
 
             return SkillState.Executing;
         }
@@ -329,10 +777,10 @@ namespace Core
         {
             //ChargeBarMinigame.Draw(spriteBatch, target.Position, 48.0f, 8.0f, 
             //    Color.White);
-            //ZigZagArrowMinigame.Draw(spriteBatch, target.Position, 24.0f, 48.0f, 
-            //    Color.White);
-            ChargeCircleMinigame.Draw(spriteBatch, target.Position, 1.0f,
-                Color.White, 32);
+            ZigZagChargeArrowMinigame.Draw(spriteBatch, target.Position, 16.0f, 32.0f, 
+                32.0f, 8.0f, new Color(255, 255, 255, 128), Color.White);
+            //ChargeCircleMinigame.Draw(spriteBatch, target.Position, 1.0f,
+            //    Color.White, 32);
         }
     }
 

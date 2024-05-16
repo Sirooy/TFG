@@ -22,7 +22,11 @@ namespace Core
 
     public enum AttackType
     {
-        Projectile1
+        Fireball,
+        Arrow,
+        HealingArrow,
+        PullingArrow,
+        WaterBall
     }
 
     public enum PlayerType
@@ -30,13 +34,13 @@ namespace Core
         Warrior,
         Mage,
         Ranger,
-        Paladin,
         NumTypes
     }
 
     public enum EffectType
     {
-        Slash
+        Slash,
+        Health
     }
 
     public enum EntityType
@@ -53,7 +57,7 @@ namespace Core
             Func<Vector2, Entity>> 
             createEnemyFunctions;
         private Dictionary<AttackType,
-            Func<Vector2, Entity>>
+            Func<Vector2, float, float, CollisionBitmask, Entity>>
             createAttackFunctions;
         private Dictionary<PlayerType,
             Func<Vector2, Entity>>
@@ -86,9 +90,13 @@ namespace Core
             };
 
             createAttackFunctions = new Dictionary<AttackType,
-                Func<Vector2, Entity>>
+                Func<Vector2, float, float, CollisionBitmask, Entity>>
             {
-                { AttackType.Projectile1, CreateAttackProjectile1 }
+                { AttackType.Fireball,     CreateAttackFireball     },
+                { AttackType.WaterBall,    CreateAttackWaterBall    },
+                { AttackType.Arrow,        CreateAttackArrow        },
+                { AttackType.HealingArrow, CreateAttackHealingArrow },
+                { AttackType.PullingArrow, CreateAttackPullingArrow },
             };
 
             createPlayerFunctions = new Dictionary<PlayerType,
@@ -97,13 +105,14 @@ namespace Core
                 { PlayerType.Warrior, CreatePlayerWarrior },
                 { PlayerType.Mage,    CreatePlayerMage    },
                 { PlayerType.Ranger,  CreatePlayerRanger  },
-                { PlayerType.Paladin, CreatePlayerPaladin }
+                //{ PlayerType.Paladin, CreatePlayerPaladin }
             };
 
             createEffectFunctions = new Dictionary<EffectType,
                 Func<Vector2, Entity>>
             {
                 { EffectType.Slash, CreateEffectSlash },
+                { EffectType.Health, CreateEffectHealth }
             };
         }
 
@@ -123,12 +132,13 @@ namespace Core
             return createPlayerFunctions[type](position);
         }
 
-        public Entity CreateAttack(AttackType type, Vector2 position)
+        public Entity CreateAttack(AttackType type, Vector2 position, 
+            float damage, float knockback, CollisionBitmask mask)
         {
             DebugAssert.Success(createAttackFunctions.ContainsKey(type),
                 "Attack type not found");
 
-            return createAttackFunctions[type](position);
+            return createAttackFunctions[type](position, damage, knockback, mask);
         }
 
         public Entity CreateEffect(EffectType type, Vector2 position)
@@ -162,7 +172,7 @@ namespace Core
             Entity e = CreateEnemyBaseEntity(position,
                 "SkeletonSpriteSheet",
                 CharacterType.Enemy | CharacterType.Normal,
-                CharacterType.Normal, 15.0f);
+                CharacterType.Normal, 20.0f);
 
             AICmp ai = entityManager.AddComponent(e, new AICmp());
             ai.DecisionTree = new BinaryDecisionNode(
@@ -177,7 +187,8 @@ namespace Core
         #endregion
 
         #region Attacks
-        private Entity CreateAttackProjectile1(Vector2 position)
+        private Entity CreateAttackFireball(Vector2 position, 
+            float damage, float knockback, CollisionBitmask mask)
         {
             Texture2D texture = content.Load<Texture2D>(
                 GameContent.TexturePath("FireballSpriteSheet"));
@@ -186,54 +197,341 @@ namespace Core
             e.Position = position;
             e.AddTag(EntityTags.Attack);
 
-            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
-            phy.Inertia = 0.0f;
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnEnterDeath = (GameWorld world, Entity entity) =>
+            {
+                AnimationControllerCmp anim = world.EntityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+                anim.Play("Death", AnimationPlayState.None);
+            };
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                EntityManager<Entity> entityManager = world.EntityManager;
+                AnimationControllerCmp anim = entityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+
+            PhysicsCmp phy    = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Inertia       = 0.0f;
             phy.LinearDamping = 0.0f;
             TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
                 new CircleCollider(17 * 0.5f),
-                CollisionBitmask.Attack, CollisionBitmask.Wall));
+                CollisionBitmask.Attack, mask | CollisionBitmask.Wall));
             col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1, 
                                    Entity e2, ColliderBody c2, 
                                    ColliderType type, in Manifold manifold) =>
             {
-                if(type != ColliderType.Static)
+                DeathCmp death = entityManager.GetComponent<DeathCmp>(e1);
+                if (death.State != DeathState.Alive) return;
+
+                if (type != ColliderType.Static)
                 {
                     if(entityManager.TryGetComponent(e2, out HealthCmp health))
                     {
-                        health.CurrentHealth -= 10.0f;
+                        health.CurrentHealth -= damage;
                     }
 
                     if(entityManager.TryGetComponent(e2, out PhysicsCmp physics))
                     {
-                        physics.Force += -manifold.Normal * 2000.0f;
+                        physics.Force += -manifold.Normal * knockback;
                     }
                 }
 
-                entityManager.RemoveEntity(e1);
+                c1.CollisionLayer  = CollisionBitmask.None;
+                c1.CollisionMask   = CollisionBitmask.None;
+                phy.LinearVelocity = Vector2.Zero;
+                death.Kill();
             };
-
-            SpriteCmp spriteCmp = entityManager.AddComponent(e,
-                new SpriteCmp(texture));
-            spriteCmp.SourceRect = new Rectangle(0, 0, 35, 17);
-            spriteCmp.LayerOrder = LayerOrder.Ordered;
-            spriteCmp.Origin = new Vector2(
-                spriteCmp.SourceRect.Value.Width * 0.5f,
-                spriteCmp.SourceRect.Value.Height * 0.5f);
-            spriteCmp.Transform.LocalPosition = new Vector2(-10.0f, 0.0f);
 
             AnimationControllerCmp anim = entityManager.AddComponent(e,
                 new AnimationControllerCmp(0));
-            anim.AddAnimation("Default", new SpriteAnimation("Default", new List<Rectangle>()
-            {
-                new Rectangle(0, 0, 35, 17),
-                new Rectangle(35, 0, 35, 17),
-                new Rectangle(70, 0, 35, 17),
-                new Rectangle(105, 0, 35, 17)
-            }, 0.2f));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath("Fireball.anim")));
             anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(texture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+            //spr.Transform.LocalPosition = new Vector2(-10.0f, 0.0f);
 
             return e;
         }
+
+        private Entity CreateAttackWaterBall(Vector2 position,
+            float damage, float knockback, CollisionBitmask mask)
+        {
+            Texture2D texture = content.Load<Texture2D>(
+                GameContent.TexturePath("WaterballSpriteSheet"));
+
+            Entity e = entityManager.CreateEntity();
+            e.Position = position;
+            e.AddTag(EntityTags.Attack);
+
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnEnterDeath = (GameWorld world, Entity entity) =>
+            {
+                AnimationControllerCmp anim = world.EntityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+                anim.Play("Death", AnimationPlayState.None);
+            };
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                EntityManager<Entity> entityManager = world.EntityManager;
+                AnimationControllerCmp anim = entityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+
+            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Inertia = 0.0f;
+            phy.LinearDamping = 0.0f;
+            TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
+                new CircleCollider(16.0f * 0.5f),
+                CollisionBitmask.Attack, mask | CollisionBitmask.Wall));
+            int bouncesLeft = 2;
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                                   Entity e2, ColliderBody c2,
+                                   ColliderType type, in Manifold manifold) =>
+            {
+                DeathCmp death = entityManager.GetComponent<DeathCmp>(e1);
+                if (death.State != DeathState.Alive) return;
+
+                if (type == ColliderType.Static)
+                {
+                    if(bouncesLeft > 0)
+                    {
+                        bouncesLeft--;
+                        phy.LinearVelocity = Vector2.Reflect(phy.LinearVelocity,
+                            manifold.Normal);
+                    }
+                    else
+                    {
+                        c1.CollisionLayer = CollisionBitmask.None;
+                        c1.CollisionMask = CollisionBitmask.None;
+                        phy.LinearVelocity = Vector2.Zero;
+                        death.Kill();
+                    }
+                }
+                else
+                {
+                    if (entityManager.TryGetComponent(e2, out HealthCmp health))
+                    {
+                        health.CurrentHealth -= damage;
+                    }
+
+                    if (entityManager.TryGetComponent(e2, out PhysicsCmp physics))
+                    {
+                        physics.Force += -manifold.Normal * knockback;
+                    }
+
+                    c1.CollisionLayer = CollisionBitmask.None;
+                    c1.CollisionMask = CollisionBitmask.None;
+                    phy.LinearVelocity = Vector2.Zero;
+                    death.Kill();
+                }
+            };
+
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath("Waterball.anim")));
+            anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(texture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+
+            return e;
+        }
+
+        private Entity CreateAttackArrow(Vector2 position, 
+            float damage, float knockback, CollisionBitmask mask)
+        {
+            Entity e = CreateAttackArrowBase(position, mask);
+
+            TriggerColliderCmp col = entityManager.GetComponent<TriggerColliderCmp>(e);
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                                   Entity e2, ColliderBody c2,
+                                   ColliderType type, in Manifold manifold) =>
+            {
+                DeathCmp death = entityManager.GetComponent<DeathCmp>(e1);
+                if (death.State != DeathState.Alive) return;
+                PhysicsCmp phy = entityManager.GetComponent<PhysicsCmp>(e1);
+
+                if (type != ColliderType.Static)
+                {
+                    if (entityManager.TryGetComponent(e2, out HealthCmp health))
+                    {
+                        health.CurrentHealth -= damage;
+                    }
+
+                    if (entityManager.TryGetComponent(e2, out PhysicsCmp physics))
+                    {
+                        physics.Force += -manifold.Normal * knockback;
+                    }
+                }
+                else
+                {
+                    c1.CollisionLayer = CollisionBitmask.None;
+                    c1.CollisionMask = CollisionBitmask.None;
+                    phy.LinearVelocity = Vector2.Zero;
+                    death.Kill();
+                }
+            };
+
+            return e;
+        }
+
+        private Entity CreateAttackHealingArrow(Vector2 position,
+            float damage, float knockback, CollisionBitmask mask)
+        {
+            Entity e = CreateAttackArrowBase(position, mask);
+
+            TriggerColliderCmp col = entityManager.GetComponent<TriggerColliderCmp>(e);
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                                   Entity e2, ColliderBody c2,
+                                   ColliderType type, in Manifold manifold) =>
+            {
+                DeathCmp death = entityManager.GetComponent<DeathCmp>(e1);
+                if (death.State != DeathState.Alive) return;
+                PhysicsCmp phy = entityManager.GetComponent<PhysicsCmp>(e1);
+
+                if (type != ColliderType.Static)
+                {
+                    if (entityManager.TryGetComponent(e2, out HealthCmp health))
+                    {
+                        health.CurrentHealth += damage;
+                    }
+
+                    if (entityManager.TryGetComponent(e2, out PhysicsCmp physics))
+                    {
+                        physics.Force += -manifold.Normal * knockback;
+                    }
+
+                    this.CreateEffect(EffectType.Health, e2.Position);
+                }
+
+                c1.CollisionLayer  = CollisionBitmask.None;
+                c1.CollisionMask   = CollisionBitmask.None;
+                phy.LinearVelocity = Vector2.Zero;
+                death.Kill();
+            };
+
+            SpriteCmp spr = entityManager.GetComponent<SpriteCmp>(e);
+            spr.Color     = new Color(0.4f, 1.0f, 0.4f);
+
+            return e;
+        }
+
+        private Entity CreateAttackPullingArrow(Vector2 position,
+            float damage, float knockback, CollisionBitmask mask)
+        {
+            Entity e = CreateAttackArrowBase(position, mask);
+
+            TriggerColliderCmp col = entityManager.GetComponent<TriggerColliderCmp>(e);
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                                   Entity e2, ColliderBody c2,
+                                   ColliderType type, in Manifold manifold) =>
+            {
+                DeathCmp death = entityManager.GetComponent<DeathCmp>(e1);
+                if (death.State != DeathState.Alive) return;
+                PhysicsCmp phy = entityManager.GetComponent<PhysicsCmp>(e1);
+
+                if (type != ColliderType.Static)
+                {
+                    if (entityManager.TryGetComponent(e2, out HealthCmp health))
+                    {
+                        health.CurrentHealth -= damage;
+                    }
+
+                    if (entityManager.TryGetComponent(e2, out PhysicsCmp physics))
+                    {
+                        physics.Force += manifold.Normal * knockback;
+                    }
+                }
+
+                c1.CollisionLayer  = CollisionBitmask.None;
+                c1.CollisionMask   = CollisionBitmask.None;
+                phy.LinearVelocity = Vector2.Zero;
+                death.Kill();
+            };
+
+            SpriteCmp spr = entityManager.GetComponent<SpriteCmp>(e);
+            spr.Color = new Color(0.4f, 0.4f, 1.0f);
+
+            return e;
+        }
+
+        private Entity CreateAttackArrowBase(Vector2 position, 
+            CollisionBitmask mask)
+        {
+            Texture2D texture = content.Load<Texture2D>(
+                GameContent.TexturePath("ArrowSpriteSheet"));
+
+            Entity e = entityManager.CreateEntity();
+            e.Position = position;
+            e.AddTag(EntityTags.Attack);
+
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnEnterDeath = (GameWorld world, Entity entity) =>
+            {
+                AnimationControllerCmp anim = world.EntityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+                anim.Play("Death", AnimationPlayState.None);
+            };
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                EntityManager<Entity> entityManager = world.EntityManager;
+                AnimationControllerCmp anim = entityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+
+            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Inertia = 0.0f;
+            phy.LinearDamping = 0.0f;
+            TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
+                new RectangleCollider(30.0f, 6.0f),
+                CollisionBitmask.Attack, mask | CollisionBitmask.Wall));
+
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath("Arrow.anim")));
+            anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(texture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+
+            return e;
+        }
+
         #endregion
 
         #region Player
@@ -290,6 +588,12 @@ namespace Core
         {
             return CreateEffectBasetEntity(position, 
                 "SlashSpriteSheet", "Slash.anim");
+        }
+
+        private Entity CreateEffectHealth(Vector2 position)
+        {
+            return CreateEffectBasetEntity(position,
+                "HealthEffectSpriteSheet", "HealthEffect.anim");
         }
 
         #endregion
@@ -462,6 +766,46 @@ namespace Core
                 GameContent.TexturePath(textureName));
 
             Entity e   = entityManager.CreateEntity();
+            e.Position = position;
+
+            //Animation
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath(animationName)));
+            anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(spriteTexture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.AlwaysTop;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                AnimationControllerCmp anim = world.EntityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+            death.Kill();
+
+            return e;
+        }
+
+        private Entity CreateAttackBasetEntity(Vector2 position,
+            string textureName, string animationName)
+        {
+            Texture2D spriteTexture = content.Load<Texture2D>(
+                GameContent.TexturePath(textureName));
+
+            Entity e = entityManager.CreateEntity();
             e.Position = position;
 
             //Animation

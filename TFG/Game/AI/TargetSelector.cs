@@ -3,6 +3,7 @@ using Engine.Ecs;
 using Cmps;
 using Core;
 using System;
+using System.Collections.Generic;
 
 namespace AI
 {
@@ -33,7 +34,7 @@ namespace AI
                 if(e.HasTag(tags))
                 {
                     float dist = Vector2.DistanceSquared(enemy.Position, e.Position);
-                    if (dist <= minDist)
+                    if (dist <= minDist && e != enemy)
                     {
                         target  = e;
                         minDist = dist;
@@ -42,6 +43,36 @@ namespace AI
             });
 
             ai.CurrentTargets.Add(target);
+        }
+    }
+
+    public class RandomEntitySelector : TargetSelector
+    {
+        private EntityTags tags;
+        private List<Entity> entities;
+
+        public RandomEntitySelector(EntityTags tags)
+        {
+            this.tags     = tags;
+            this.entities = new List<Entity>();
+        }
+
+        public override void Select(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            ai.CurrentTargets.Clear();
+            entities.Clear();
+
+            world.EntityManager.ForEachEntity((Entity e) =>
+            {
+                if (e.HasTag(tags))
+                {
+                    entities.Add(e);
+                }
+            });
+
+            Entity e = entities[Random.Shared.Next(entities.Count)];
+            ai.CurrentTargets.Add(e);
         }
     }
 

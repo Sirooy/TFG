@@ -71,6 +71,7 @@ namespace States
             gameStates.RegisterState(new PlayGameDungeonState(game, this));
             gameStates.RegisterState(new PlayGameWinState(game, this));
             gameStates.RegisterState(new PlayGameLoseState(game, this));
+            gameStates.RegisterState(new PlayGamePauseState(game, this));
         }
 
         private void RegisterEntityComponents() 

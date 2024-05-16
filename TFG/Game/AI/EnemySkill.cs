@@ -1,13 +1,12 @@
-﻿using Engine.Ecs;
+﻿using System;
+using System.Linq;
+using System.Collections.Generic;
+using Microsoft.Xna.Framework;
+using Engine.Ecs;
+using Engine.Core;
 using Cmps;
 using Core;
-using System.Linq;
-using Microsoft.Xna.Framework;
-using System;
-using System.Collections.Generic;
-using Microsoft.Xna.Framework.Graphics.PackedVector;
-using Engine.Core;
-using TFG.Game.AI;
+
 
 namespace AI
 {
@@ -143,7 +142,7 @@ namespace AI
             }
             else if(internalState == InternalState.FadingOut)
             {
-                FadeOut(world, enemy);
+                AIUtil.FadeOut(world, enemy, FADE_TIME, ref fadeTimer);
 
                 if (fadeTimer <= 0.0f)
                 {
@@ -154,7 +153,7 @@ namespace AI
             }
             else if(internalState == InternalState.FadingIn)
             {
-                FadeIn(world, enemy);
+                AIUtil.FadeIn(world, enemy, FADE_TIME, ref fadeTimer);
 
                 if (fadeTimer <= 0.0f)
                 {
@@ -166,48 +165,6 @@ namespace AI
             }
             
             return SkillState.Executing;
-        }
-
-        private void FadeOut(GameWorld world,
-            Entity enemy)
-        {
-            EntityManager<Entity> entityManager = world.EntityManager;
-
-            fadeTimer -= world.Dt;
-            float t    = MathF.Max(fadeTimer, 0.0f) / FADE_TIME;
-            byte alpha = (byte)(255 * t);
-
-            CharacterCmp character         = entityManager.
-                GetComponent<CharacterCmp>(enemy);
-            MSAItemList<SpriteCmp> sprites = entityManager.
-                GetComponents<SpriteCmp>(enemy);
-
-            character.Color.A = alpha;
-            for (int i = 0; i < sprites.Count; ++i)
-            {
-                sprites[i].Color.A = alpha;
-            }
-        }
-
-        private void FadeIn(GameWorld world,
-            Entity enemy)
-        {
-            EntityManager<Entity> entityManager = world.EntityManager;
-
-            fadeTimer -= world.Dt;
-            float t    = 1.0f - (MathF.Max(fadeTimer, 0.0f) / FADE_TIME);
-            byte alpha = (byte)(255 * t);
-
-            CharacterCmp character         = entityManager.
-                GetComponent<CharacterCmp>(enemy);
-            MSAItemList<SpriteCmp> sprites = entityManager.
-                GetComponents<SpriteCmp>(enemy);
-
-            character.Color.A = alpha;
-            for (int i = 0; i < sprites.Count; ++i)
-            {
-                sprites[i].Color.A = alpha;
-            }
         }
 
         private void CalculateTeleportPosition(GameWorld world,

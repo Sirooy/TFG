@@ -5,9 +5,10 @@ using Engine.Core;
 using Engine.Debug;
 using Engine.Ecs;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Media;
+using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Media;
 using Physics;
 using System;
 using System.Collections.Generic;
@@ -365,10 +366,10 @@ namespace States
             // BORRAR
             playerData.Dices.Add(new Dice(new List<PlayerSkill>()
             {
-                new DashPlayerSkill(1),
-                new DashPlayerSkill(2),
-                new DashPlayerSkill(3),
-                new DashPlayerSkill(4),
+                new DragDashPlayerSkill(1),
+                new DragDashPlayerSkill(2),
+                new DragDashPlayerSkill(3),
+                new DragDashPlayerSkill(4),
             }, new Color(1.0f, 0.3f, 0.3f)));
 
             playerData.Dices.Add(new Dice(new List<PlayerSkill>()
@@ -391,7 +392,10 @@ namespace States
 
             playerData.Dices.Add(new Dice(new List<PlayerSkill>()
             {
-                new PathFollowPSkill(),
+                new ArrowPSkill(3),
+                new ArrowPSkill(2),
+                new ArrowPSkill(1),
+
             }, new Color(1.0f, 1.0f, 1.0f)));
 
             ResetUIDices();
@@ -413,6 +417,10 @@ namespace States
         {
             float dt     = (float)gameTime.ElapsedGameTime.TotalSeconds;
             gameWorld.Dt = dt;
+
+            if(KeyboardInput.IsKeyPressed(Keys.Escape))
+                parentState.GameStates.PushState<PlayGamePauseState>();
+            
 
             ui.Update();
             cameraController.Update(dt);

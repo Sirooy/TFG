@@ -46,14 +46,16 @@ namespace Core
         private static MinigameState state;
         private static float rps;   //Revolutions per second
         private static float angle;
+        private static float showResultTime;
         private static Vector2 direction;
 
         public static float Angle { get { return angle; } }
         public static Vector2 Direction { get{ return direction; } }
 
-        public static void Init(float rps)
+        public static void Init(float rps, float showResultTime)
         {
-            RotatingArrowMinigame.rps = rps;
+            RotatingArrowMinigame.rps            = rps;
+            RotatingArrowMinigame.showResultTime = showResultTime;
 
             angle     = (float) Random.Shared.NextDouble() * MathUtil.PI2;
             state     = MinigameState.Executing;
@@ -62,15 +64,23 @@ namespace Core
 
         public static MinigameState Update(float dt)
         {
-            if (state == MinigameState.Finished) return state;
-
-            angle    += dt * rps;
-            angle     = MathHelper.WrapAngle(angle);
-            CalculateDirection();
-
-            if (MouseInput.IsLeftButtonPressed())
+            if(state == MinigameState.Executing)
             {
-                state = MinigameState.Finished;
+                angle += dt * rps * MathUtil.PI2;
+                angle = MathHelper.WrapAngle(angle);
+                CalculateDirection();
+
+                if (MouseInput.IsLeftButtonPressed() || 
+                    KeyboardInput.IsKeyPressed(Keys.Space))
+                {
+                    state = MinigameState.Finished;
+                }
+            }
+            else if (state == MinigameState.ShowingResult)
+            {
+                showResultTime -= dt;
+                if (showResultTime <= 0.0f)
+                    state = MinigameState.Finished;
             }
 
             return state;
@@ -96,41 +106,53 @@ namespace Core
         private static MinigameState state;
         private static float maxAngle;
         private static float wavesPerSecond;
-        private static float minDragDistance;
-        private static float maxDragDistance;
         private static float currentAngleTime;
-        private static Vector2 currentDirection;
+        private static float showResultTime;
+        private static Vector2 direction;
+
+        public static Vector2 Direction { get { return direction; } }
 
         public static void Init(float maxAngle, float wavesPerSecond, 
-            float minDragDistance, float maxDragDistance)
+            float showResultTime)
         {
-            ZigZagArrowMinigame.maxAngle        = maxAngle;
-            ZigZagArrowMinigame.wavesPerSecond  = wavesPerSecond;
-            ZigZagArrowMinigame.minDragDistance = minDragDistance;
-            ZigZagArrowMinigame.maxDragDistance = maxDragDistance;
+            ZigZagArrowMinigame.maxAngle       = maxAngle;
+            ZigZagArrowMinigame.wavesPerSecond = wavesPerSecond;
+            ZigZagArrowMinigame.showResultTime = showResultTime;
             state            = MinigameState.Executing;
             currentAngleTime = 0.0f;
         }
 
         public static MinigameState Update(float dt, Entity target, Camera2D camera)
         {
-            Vector2 baseDirection = target.Position -
+            if(state == MinigameState.Executing)
+            {
+                Vector2 baseDirection = target.Position -
                 MouseInput.GetPosition(camera);
-            float length = baseDirection.Length();
-            if (length != 0.0f)
-                baseDirection /= length;
-            else
-                baseDirection = Vector2.UnitX;
+                float length = baseDirection.Length();
+                if (length != 0.0f)
+                    baseDirection /= length;
+                else
+                    baseDirection = Vector2.UnitX;
 
-            float dist   = Math.Clamp(length, minDragDistance, maxDragDistance);
-            float powerT = (dist - minDragDistance) / (maxDragDistance - minDragDistance);
+                currentAngleTime += dt * MathUtil.PI2 * wavesPerSecond; //1 sec -> 360 degrees
+                if (currentAngleTime >= MathUtil.PI2)
+                    currentAngleTime -= MathUtil.PI2;
+                float angle = MathF.Cos(currentAngleTime) * maxAngle;
 
-            currentAngleTime += dt * MathUtil.PI2 * wavesPerSecond; //1 sec -> 360 degrees
-            if (currentAngleTime >= MathUtil.PI2)
-                currentAngleTime -= MathUtil.PI2;
-            float angle = MathF.Cos(currentAngleTime) * maxAngle * powerT;
+                direction = baseDirection.Rotate(angle);
 
-            currentDirection = baseDirection.Rotate(angle);
+                if (MouseInput.IsLeftButtonPressed() ||
+                    KeyboardInput.IsKeyPressed(Keys.Space))
+                {
+                    state = MinigameState.Finished;
+                }
+            }
+            else if(state == MinigameState.ShowingResult)
+            {
+                showResultTime -= dt;
+                if (showResultTime <= 0.0f)
+                    state = MinigameState.Finished;
+            }
 
             return state;
         }
@@ -139,8 +161,109 @@ namespace Core
             Vector2 position, float thickness,
             float length, Color color)
         {
-            spriteBatch.DrawArrow(position, currentDirection, 
+            spriteBatch.DrawArrow(position, direction,
                 length, thickness, color);
+        }
+    }
+
+    
+    public static class ZigZagChargeArrowMinigame
+    {
+        private static MinigameState state;
+        private static int levels;
+        private static int currentLevel;
+        private static Color minColor;
+        private static Color maxColor;
+        private static float maxAngle;
+        private static float showResultTime;
+        private static float wavesPerSecond;
+        private static float minDragDistance;
+        private static float maxDragDistance;
+        private static float currentAngleTime;
+        private static Vector2 direction;
+
+        public static int CurrentLevel
+        {
+            get { return currentLevel; }
+        }
+
+        public static float CurrentLevelPower
+        {
+            get { return (float) currentLevel / levels; }
+        }
+
+        public static Vector2 Direction { get { return direction; } }
+
+        public static void Init(int levels, float maxAngle, float wavesPerSecond, 
+            float showResultTime, float minDragDistance, float maxDragDistance, 
+            Color minColor, Color maxColor)
+        {
+            ZigZagChargeArrowMinigame.levels          = levels;
+            ZigZagChargeArrowMinigame.maxAngle        = maxAngle;
+            ZigZagChargeArrowMinigame.showResultTime  = showResultTime;
+            ZigZagChargeArrowMinigame.wavesPerSecond  = wavesPerSecond;
+            ZigZagChargeArrowMinigame.minDragDistance = minDragDistance;
+            ZigZagChargeArrowMinigame.maxDragDistance = maxDragDistance;
+            ZigZagChargeArrowMinigame.currentLevel    = 0;
+            ZigZagChargeArrowMinigame.minColor        = minColor;
+            ZigZagChargeArrowMinigame.maxColor        = maxColor;
+            state            = MinigameState.Executing;
+            currentAngleTime = 0.0f;
+        }
+
+        public static MinigameState Update(float dt, Entity target, Camera2D camera)
+        {
+            if(state == MinigameState.Executing)
+            {
+                Vector2 baseDirection = target.Position -
+                MouseInput.GetPosition(camera);
+                float length = baseDirection.Length();
+                if (length != 0.0f)
+                    baseDirection /= length;
+                else
+                    baseDirection = Vector2.UnitX;
+
+                float dist = Math.Clamp(length, minDragDistance, maxDragDistance);
+                float t = (dist - minDragDistance) / (maxDragDistance - minDragDistance);
+                currentLevel = (int)MathF.Round(levels * t);
+                float powerT = ((float)currentLevel / levels);
+
+                currentAngleTime += dt * MathUtil.PI2 * wavesPerSecond; //1 sec -> 360 degrees
+                if (currentAngleTime >= MathUtil.PI2)
+                    currentAngleTime -= MathUtil.PI2;
+                float angle = MathF.Cos(currentAngleTime) * maxAngle * powerT;
+
+                direction = baseDirection.Rotate(angle);
+
+                if (MouseInput.IsLeftButtonPressed() ||
+                    KeyboardInput.IsKeyPressed(Keys.Space))
+                {
+                    state = MinigameState.ShowingResult;
+                }
+            }
+            else if (state == MinigameState.ShowingResult)
+            {
+                showResultTime -= dt;
+                if (showResultTime <= 0.0f)
+                    state = MinigameState.Finished;
+            }
+
+            return state;
+        }
+
+        public static void Draw(SpriteBatch spriteBatch,
+            Vector2 position, float arrowThickness,
+            float arrowLength, float barLength, float barHeight, 
+            Color arrowColor, Color barColor)
+        {
+            spriteBatch.DrawArrow(position, direction, 
+                arrowLength, arrowThickness, arrowColor);
+
+            float t            = (float)currentLevel / levels;
+            Color currentColor = Color.Lerp(minColor, maxColor, t);
+            spriteBatch.DrawRectangle(position - new Vector2(barLength * 0.5f, barHeight* 0.5f),
+                new Vector2(barLength * t, barHeight), currentColor);
+            spriteBatch.DrawBar(position, barLength, barHeight, barColor);
         }
     }
 
@@ -162,6 +285,14 @@ namespace Core
             {
                 return minValue + currentValue * (maxValue - minValue);
             } 
+        }
+
+        public static Color CurrentColor
+        {
+            get
+            {
+                return currentColor;
+            }
         }
 
         public static void Init(float fillSpeed, float showResultTime, 
