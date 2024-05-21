@@ -55,7 +55,7 @@ namespace AI
             Entity e, Vector2 basePosition, Vector2 direction, 
             float speed, float offset = 8.0f)
         {
-            SetProjectilePosition(entityManager, e, basePosition, direction, 8.0f);
+            SetProjectilePosition(entityManager, e, basePosition, direction, offset);
             SetProjectileVelocity(entityManager, e, direction * speed);
         }
 
@@ -65,7 +65,13 @@ namespace AI
             PhysicsCmp physics     = entityManager.GetComponent<PhysicsCmp>(e);
             physics.LinearVelocity = velocity;
 
-            e.Rotation = MathF.Atan2(velocity.Y, velocity.X);
+            SetProjectileDirection(entityManager, e, velocity);
+        }
+
+        public static void SetProjectileDirection(EntityManager<Entity> entityManager,
+            Entity e, Vector2 dir)
+        {
+            e.Rotation = MathF.Atan2(dir.Y, dir.X);
         }
 
         public static void SetProjectilePosition(EntityManager<Entity> entityManager,

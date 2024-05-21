@@ -73,7 +73,7 @@ namespace Core
                 if (MouseInput.IsLeftButtonPressed() || 
                     KeyboardInput.IsKeyPressed(Keys.Space))
                 {
-                    state = MinigameState.Finished;
+                    state = MinigameState.ShowingResult;
                 }
             }
             else if (state == MinigameState.ShowingResult)
@@ -144,7 +144,7 @@ namespace Core
                 if (MouseInput.IsLeftButtonPressed() ||
                     KeyboardInput.IsKeyPressed(Keys.Space))
                 {
-                    state = MinigameState.Finished;
+                    state = MinigameState.ShowingResult;
                 }
             }
             else if(state == MinigameState.ShowingResult)

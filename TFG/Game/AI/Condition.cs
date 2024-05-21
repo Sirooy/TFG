@@ -57,4 +57,31 @@ namespace AI
             return result.ColliderType == ColliderType.Dynamic;
         }
     }
+
+    public class HasLessThanPercentHealth : Condition
+    {
+        public float Percent;
+
+        public HasLessThanPercentHealth(float percent)
+        {
+            this.Percent = percent;
+        }
+
+        public override bool IsTrue(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            if (ai.CurrentTargets.Count == 0) return false;
+            Entity target = ai.CurrentTargets.First();
+
+            if (world.EntityManager.TryGetComponent(target, out HealthCmp health))
+            {
+                if(health.CurrentHealth <= health.MaxHealth * Percent)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
 }

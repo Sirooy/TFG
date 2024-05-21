@@ -49,6 +49,25 @@ namespace AI
         }
     }
 
+    public class RandomDecisionNode : DecisionNode
+    {
+        protected DecisionTreeNode[] nodes;
+
+        public RandomDecisionNode(TargetSelector targetSelector,
+            params DecisionTreeNode[] nodes) : base(targetSelector)
+        {
+            this.nodes = nodes;
+        }
+
+        public override DecisionTreeNode Run(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            targetSelector.Select(world, enemy, ai);
+
+            return nodes[Random.Shared.Next(nodes.Length)];
+        }
+    }
+
     public class TargetChangerDecisionNode : DecisionNode
     {
         protected DecisionTreeNode node;

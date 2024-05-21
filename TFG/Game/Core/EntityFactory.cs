@@ -17,16 +17,22 @@ namespace Core
     {
         BlackBat,
         Skeleton,
+        RedDragon,
+        Goblin,
+        WizardGoblin,
         Enemy3
     }
 
     public enum AttackType
     {
         Fireball,
+        Waterball,
+        LightningBall,
         Arrow,
         HealingArrow,
         PullingArrow,
-        WaterBall
+        SwordSpin,
+        SwordStab
     }
 
     public enum PlayerType
@@ -85,18 +91,24 @@ namespace Core
             createEnemyFunctions = new Dictionary<EnemyType,
                 Func<Vector2, Entity>>
             {
-                { EnemyType.BlackBat, CreateEnemySkeleton },
-                { EnemyType.Skeleton, CreateEnemySkeleton }
+                { EnemyType.BlackBat,     CreateEnemyWizardGoblin       },
+                { EnemyType.Skeleton,     CreateEnemySkeleton     },
+                { EnemyType.RedDragon,    CreateEnemyRedDragon    },
+                { EnemyType.Goblin,       CreateEnemyGoblin       },
+                { EnemyType.WizardGoblin, CreateEnemyWizardGoblin }
             };
 
             createAttackFunctions = new Dictionary<AttackType,
                 Func<Vector2, float, float, CollisionBitmask, Entity>>
             {
-                { AttackType.Fireball,     CreateAttackFireball     },
-                { AttackType.WaterBall,    CreateAttackWaterBall    },
-                { AttackType.Arrow,        CreateAttackArrow        },
-                { AttackType.HealingArrow, CreateAttackHealingArrow },
-                { AttackType.PullingArrow, CreateAttackPullingArrow },
+                { AttackType.Fireball,      CreateAttackFireball      },
+                { AttackType.Waterball,     CreateAttackWaterBall     },
+                { AttackType.LightningBall, CreateAttackLightningBall },
+                { AttackType.Arrow,         CreateAttackArrow         },
+                { AttackType.HealingArrow,  CreateAttackHealingArrow  },
+                { AttackType.PullingArrow,  CreateAttackPullingArrow  },
+                { AttackType.SwordSpin,     CreateAttackSwordSpin     },
+                { AttackType.SwordStab,     CreateAttackSwordStab     },
             };
 
             createPlayerFunctions = new Dictionary<PlayerType,
@@ -179,7 +191,68 @@ namespace Core
                 new NearestEntitySelector(EntityTags.Player),
                 new IsNearCondition(50.0f),
                 new MeleeAttackESkill(5.0f, Color.White),
-                new PathFollowESkill(50.0f, 100.0f));
+                new PathFollowESkill(50.0f, 120.0f));
+
+            return e;
+        }
+
+        private Entity CreateEnemyRedDragon(Vector2 position)
+        {
+            Entity e = CreateEnemyBaseEntity(position,
+                "RedDragonSpriteSheet",
+                CharacterType.Enemy | CharacterType.Normal,
+                CharacterType.Normal, 30.0f);
+
+            AICmp ai = entityManager.AddComponent(e, new AICmp());
+            ai.DecisionTree = new BinaryDecisionNode(
+                new LessHealthEntitySelector(EntityTags.Player),
+                new HasVisionCondition(CollisionBitmask.Player),
+                new ProjectileAttackESkill(AttackType.Fireball, 10.0f, 1000.0f, 150.0f),
+                new PathFollowESkill(75.0f, 75.0f));
+
+            return e;
+        }
+
+        private Entity CreateEnemyGoblin(Vector2 position)
+        {
+            Entity e = CreateEnemyBaseEntity(position,
+                "GoblinSpriteSheet",
+                CharacterType.Enemy | CharacterType.Normal,
+                CharacterType.Normal, 20.0f);
+
+            AICmp ai = entityManager.AddComponent(e, new AICmp());
+            ai.DecisionTree = new BinaryDecisionNode(
+                new NearestEntitySelector(EntityTags.Player),
+                new HasVisionCondition(CollisionBitmask.Player),
+                    new BinaryDecisionNode(
+                        new NearestEntitySelector(EntityTags.Player),
+                        new IsNearCondition(50.0f),
+                        new AttackESkill(AttackType.SwordSpin, 8.0f, 2000.0f, 50.0f),
+                        new StraightDashESkill(120.0f)),
+                new PathFollowESkill(60.0f, 90.0f));
+
+            return e;
+        }
+
+        private Entity CreateEnemyWizardGoblin(Vector2 position)
+        {
+            Entity e = CreateEnemyBaseEntity(position,
+                "WizardGoblinSpriteSheet",
+                CharacterType.Enemy | CharacterType.Normal,
+                CharacterType.Normal, 40.0f);
+
+            AICmp ai = entityManager.AddComponent(e, new AICmp());
+            ai.DecisionTree = new BinaryDecisionNode(
+                new LessHealthEntitySelector(EntityTags.Enemy),
+                new HasLessThanPercentHealth(0.7f),
+                    new BinaryDecisionNode(
+                        new LessHealthEntitySelector(EntityTags.Enemy),
+                        new IsNearCondition(80.0f),
+                        new HealESkill(10.0f),
+                        new TeleportToTargetESkill(200.0f)),
+                new TargetChangerDecisionNode(
+                    new RandomEntitySelector(EntityTags.Player),
+                    new ProjectileAttackESkill(AttackType.Waterball, 10.0f, 500.0f, 120.0f)));
 
             return e;
         }
@@ -361,6 +434,101 @@ namespace Core
             return e;
         }
 
+        private Entity CreateAttackLightningBall(Vector2 position,
+            float damage, float knockback, CollisionBitmask mask)
+        {
+            Texture2D texture = content.Load<Texture2D>(
+                GameContent.TexturePath("LightningballSpriteSheet"));
+
+            Entity e = entityManager.CreateEntity();
+            e.Position = position;
+            e.AddTag(EntityTags.Attack);
+
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnEnterDeath = (GameWorld world, Entity entity) =>
+            {
+                AnimationControllerCmp anim = world.EntityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+                anim.Play("Death", AnimationPlayState.None);
+            };
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                EntityManager<Entity> entityManager = world.EntityManager;
+                AnimationControllerCmp anim = entityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+
+            PhysicsCmp phy = entityManager.AddComponent(e, new PhysicsCmp());
+            phy.Inertia = 0.0f;
+            phy.LinearDamping = 0.0f;
+            TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
+                new CircleCollider(16.0f * 0.5f),
+                CollisionBitmask.Attack, mask | CollisionBitmask.Wall));
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                                   Entity e2, ColliderBody c2,
+                                   ColliderType type, in Manifold manifold) =>
+            {
+                DeathCmp death = entityManager.GetComponent<DeathCmp>(e1);
+                if (death.State != DeathState.Alive) return;
+
+                if (type != ColliderType.Static)
+                {
+                    if (entityManager.TryGetComponent(e2, out HealthCmp health))
+                    {
+                        health.CurrentHealth -= damage;
+                    }
+
+                    if (entityManager.TryGetComponent(e2, out PhysicsCmp physics))
+                    {
+                        physics.Force += -manifold.Normal * knockback;
+                    }
+
+                    entityManager.ForEachComponent((Entity other, HealthCmp health) =>
+                    {
+                        if (other == e2) return;
+
+                        if(entityManager.TryGetComponent(other, out ColliderCmp col))
+                        {
+                            if((col.CollisionLayer & mask) != CollisionBitmask.None &&
+                                Vector2.DistanceSquared(e2.Position, other.Position) <= 64.0f * 64.0f)
+                            {
+                                health.CurrentHealth -= damage * 0.2f;
+                                Entity slash = this.CreateEffectSlash(other.Position);
+                                SpriteCmp slashSpr = entityManager.GetComponent<SpriteCmp>(slash);
+                                slashSpr.Color = Color.Yellow;
+                            }
+                        }
+                    });
+                }
+
+                c1.CollisionLayer = CollisionBitmask.None;
+                c1.CollisionMask = CollisionBitmask.None;
+                phy.LinearVelocity = Vector2.Zero;
+                death.Kill();
+            };
+
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath("Lightningball.anim")));
+            anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(texture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+
+            return e;
+        }
+
         private Entity CreateAttackArrow(Vector2 position, 
             float damage, float knockback, CollisionBitmask mask)
         {
@@ -528,6 +696,134 @@ namespace Core
             spr.Origin = new Vector2(
                 spr.SourceRect.Value.Width * 0.5f,
                 spr.SourceRect.Value.Height * 0.5f);
+
+            return e;
+        }
+
+        private Entity CreateAttackSwordSpin(Vector2 position,
+            float damage, float knockback, CollisionBitmask mask)
+        {
+            Texture2D texture = content.Load<Texture2D>(
+                GameContent.TexturePath("SwordSpinSpriteSheet"));
+
+            Entity e = entityManager.CreateEntity();
+            e.Position = position;
+            e.AddTag(EntityTags.Attack);
+
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                EntityManager<Entity> entityManager = world.EntityManager;
+                AnimationControllerCmp anim = entityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+
+            TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
+                new CircleCollider(24.0f),
+                CollisionBitmask.Attack, mask));
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                                   Entity e2, ColliderBody c2,
+                                   ColliderType type, in Manifold manifold) =>
+            {
+                if (type != ColliderType.Static)
+                {
+                    if (entityManager.TryGetComponent(e2, out HealthCmp health))
+                    {
+                        health.CurrentHealth -= damage;
+                    }
+
+                    if (entityManager.TryGetComponent(e2, out PhysicsCmp physics))
+                    {
+                        physics.Force += -manifold.Normal * knockback;
+                    }
+                }
+
+            };
+
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath("SwordSpin.anim")));
+            anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(texture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin     = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+
+            death.Kill();
+
+            return e;
+        }
+
+        private Entity CreateAttackSwordStab(Vector2 position,
+            float damage, float knockback, CollisionBitmask mask)
+        {
+            Texture2D texture = content.Load<Texture2D>(
+                GameContent.TexturePath("SwordStabSpriteSheet"));
+
+            Entity e = entityManager.CreateEntity();
+            e.Position = position;
+            e.AddTag(EntityTags.Attack);
+
+            DeathCmp death = entityManager.AddComponent(e, new DeathCmp());
+            death.OnDying = (GameWorld world, Entity entity, float dt) =>
+            {
+                EntityManager<Entity> entityManager = world.EntityManager;
+                AnimationControllerCmp anim = entityManager.
+                    GetComponent<AnimationControllerCmp>(entity);
+
+                if (anim.AnimationHasFinished)
+                    return DyingState.Kill;
+                else
+                    return DyingState.KeepAlive;
+            };
+
+            TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
+                new RectangleCollider(36.0f, 10.0f),
+                CollisionBitmask.Attack, mask));
+            col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
+                                   Entity e2, ColliderBody c2,
+                                   ColliderType type, in Manifold manifold) =>
+            {
+                if (type != ColliderType.Static)
+                {
+                    if (entityManager.TryGetComponent(e2, out HealthCmp health))
+                    {
+                        health.CurrentHealth -= damage;
+                    }
+
+                    if (entityManager.TryGetComponent(e2, out PhysicsCmp physics))
+                    {
+                        physics.Force += -manifold.Normal * knockback;
+                    }
+                }
+
+            };
+
+            AnimationControllerCmp anim = entityManager.AddComponent(e,
+                new AnimationControllerCmp(0));
+            anim.AddAnimations(animationLoader.Load(
+                GameContent.AnimationPath("SwordStab.anim")));
+            anim.Play("Default");
+
+            SpriteCmp spr = entityManager.AddComponent(e,
+                new SpriteCmp(texture));
+            spr.SourceRect = anim.GetCurrentFrameSource();
+            spr.LayerOrder = LayerOrder.Ordered;
+            spr.Origin = new Vector2(
+                spr.SourceRect.Value.Width * 0.5f,
+                spr.SourceRect.Value.Height * 0.5f);
+
+            death.Kill();
 
             return e;
         }

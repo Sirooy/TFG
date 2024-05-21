@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Engine.Ecs;
 using Engine.Core;
+using Physics;
 using Cmps;
 using Core;
 
@@ -42,6 +43,8 @@ namespace AI
         public override SkillState Execute(GameWorld world,
             Entity enemy, AICmp ai)
         {
+            if (ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
             Entity target = ai.CurrentTargets.First();
 
             if(world.EntityManager.TryGetComponent(target, out HealthCmp health))
@@ -59,6 +62,149 @@ namespace AI
         }
     }
 
+    public class HealESkill : EnemySkill
+    {
+        public float Amount;
+
+        public HealESkill(float amount)
+        {
+            this.Amount = amount;
+        }
+
+        public override SkillState Execute(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            if (ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
+            Entity target = ai.CurrentTargets.First();
+
+            if (world.EntityManager.TryGetComponent(target, out HealthCmp health))
+            {
+                health.AddHealth(Amount);
+            }
+
+            world.EntityFactory.CreateEffect(EffectType.Health, target.Position);
+
+            return SkillState.Finished;
+        }
+    }
+
+    public class AttackESkill : EnemySkill
+    {
+        public AttackType Type;
+        public float Damage;
+        public float Knockback;
+        public float Radius;
+        public bool ExecuteOnTarget;
+        public CollisionBitmask Mask;
+
+        public AttackESkill(AttackType type, float damage, float knockback, float radius,
+            bool executeOnTarget = false, CollisionBitmask mask = CollisionBitmask.Player)
+        {
+            this.Type            = type;
+            this.Damage          = damage;
+            this.Knockback       = knockback;
+            this.Radius          = radius;
+            this.ExecuteOnTarget = executeOnTarget;
+            this.Mask            = mask;
+        }
+
+        public override SkillState Execute(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            if (ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
+            Entity target = ai.CurrentTargets.First();
+            Vector2 direction = Vector2.Normalize(target.Position - enemy.Position);
+            Vector2 position = enemy.Position;
+            if (ExecuteOnTarget)
+                position = target.Position;
+
+            Entity attack = world.EntityFactory.CreateAttack(Type, position,
+                Damage, Knockback, Mask);
+            TriggerColliderCmp collider = world.EntityManager.
+                    GetComponent<TriggerColliderCmp>(attack);
+            CircleCollider circle = (CircleCollider)collider.Collider;
+            attack.Scale = Radius / circle.Radius;
+
+            AIUtil.SetProjectileDirection(world.EntityManager, attack, direction);
+
+            return SkillState.Finished;
+        }
+    }
+
+    public class ProjectileAttackESkill : EnemySkill
+    {
+        public AttackType Type;
+        public float Damage;
+        public float Knockback;
+        public float Speed;
+        public CollisionBitmask Mask;
+
+        public ProjectileAttackESkill(AttackType type,  float damage, float knockback, 
+            float speed, CollisionBitmask mask = CollisionBitmask.Player)
+        {
+            this.Type      = type;
+            this.Damage    = damage;
+            this.Knockback = knockback;
+            this.Speed     = speed;
+            this.Mask      = mask;
+        }
+
+        public override SkillState Execute(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            if(ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
+            Entity target     = ai.CurrentTargets.First();
+            Vector2 direction = Vector2.Normalize(target.Position - enemy.Position);
+
+            Entity attack = world.EntityFactory.CreateAttack(Type, target.Position, 
+                Damage, Knockback, Mask);
+
+            AIUtil.SetProjectilePosAndVel(world.EntityManager, attack,
+                enemy.Position, direction, Speed);
+
+            return SkillState.Finished;
+        }
+    }
+
+    public class DashESkill : EnemySkill
+    {
+        public float Distance;
+        public bool DashAway;
+
+        public DashESkill(float distance, bool dashAway = false)
+        {
+            Distance = distance;
+            DashAway = dashAway;
+        }
+
+        public override SkillState Execute(GameWorld world,
+            Entity enemy, AICmp ai)
+        {
+            if (ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
+
+            if (enemy.HasCmp<PhysicsCmp>())
+            {
+                Entity target = ai.CurrentTargets.First();
+                Vector2 dir   = target.Position - enemy.Position;
+                if (DashAway)
+                    dir = -dir;
+
+                if (dir != Vector2.Zero)
+                {
+                    dir.Normalize();
+                    AIUtil.SetEntityDashVelocity
+                        (world.EntityManager, enemy, dir, Distance);
+                }
+            }
+
+            return SkillState.Finished;
+        }
+    }
+
     public class StraightDashESkill : EnemySkill
     {
         public float MaxDistance;
@@ -71,6 +217,8 @@ namespace AI
         public override SkillState Execute(GameWorld world, 
             Entity enemy, AICmp ai)
         {
+            if (ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
             EntityManager<Entity> entityManager = world.EntityManager;
 
             if (entityManager.TryGetComponent(enemy, out PhysicsCmp physics) && 
@@ -133,6 +281,8 @@ namespace AI
         public override SkillState Execute(GameWorld world,
             Entity enemy, AICmp ai)
         {
+            if (ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
             if (internalState == InternalState.CalculatingTeleportPos)
             {
                 CalculateTeleportPosition(world, enemy, ai);
@@ -218,7 +368,9 @@ namespace AI
         public override SkillState Execute(GameWorld world,
             Entity enemy, AICmp ai)
         {
-            if(world.EntityManager.TryGetComponent(enemy, 
+            if (ai.CurrentTargets.Count == 0) return SkillState.Finished;
+
+            if (world.EntityManager.TryGetComponent(enemy, 
                 out PhysicsCmp physics))
             {
                 Entity target = ai.CurrentTargets.First();
@@ -231,7 +383,7 @@ namespace AI
                 if (travelDistance >= MaxDistance || path.Count <= 1)
                 {
                     travelTime              = 0.0f;
-                    physics.LinearVelocity *= 0.2f;
+                    physics.LinearVelocity *= 0.1f;
                     return SkillState.Finished;
                 }
 

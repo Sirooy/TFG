@@ -53,14 +53,15 @@ namespace Systems
             entityManager.ForEachComponent((Entity e, HealthCmp health) =>
             {
                 const float MAX_WIDTH       = 16.0f;
-                const float MAX_TEXT_HEIGHT = 6.0f;
+                const float MAX_TEXT_HEIGHT = 8.0f;
                 const float MARGIN          = 2.0f;
+                const float TEXT_MARGIN     = 4.0f;
 
                 float borderScale  = MAX_WIDTH / health.HealthBorderSourceRect.Width;
                 float borderHeight = health.HealthBorderSourceRect.Height * borderScale;
                 float healthWidth  = health.CurrentHealthSourceRect.Width * borderScale;
                 float healthHeight = health.CurrentHealthSourceRect.Height * borderScale;
-                string text        = health.CurrentHealth.ToString();
+                string text        = Math.Ceiling(health.CurrentHealth).ToString();
                 Vector2 textSize   = font.MeasureString(text);
                 float textScale    = MAX_TEXT_HEIGHT / textSize.Y;
                 float textWidth    = textSize.X * textScale;
@@ -81,7 +82,7 @@ namespace Systems
                 }
                 Vector2 textPos = new Vector2(
                     borderPos.X + MAX_WIDTH * 0.5f - textWidth * 0.5f,
-                    borderPos.Y + borderHeight * 0.5f - MAX_TEXT_HEIGHT * 0.5f);
+                    borderPos.Y + borderHeight * 0.5f - MAX_TEXT_HEIGHT * 0.5f - TEXT_MARGIN);
 
                 //Draw border
                 spriteBatch.Draw(health.Texture, borderPos, health.HealthBorderSourceRect,

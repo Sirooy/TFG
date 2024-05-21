@@ -1,4 +1,6 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Engine.Debug;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 
@@ -7,9 +9,9 @@ namespace Core
     [Flags]
     public enum NodeState
     {
-        None       = 0x00,
-        OnOpenList = 0x01,
-        Visited    = 0x02,
+        None    = 0x00,
+        OnQueue = 0x01,
+        Visited = 0x02,
     }
 
     public class Node
@@ -45,14 +47,14 @@ namespace Core
         private DungeonLevel level;
         private Node[,] nodes;
         private int currentId;
-        private PriorityQueue<Node, int> openList;
+        private PriorityQueue<Node, int> queue;
 
         public PathFindingMap(DungeonLevel level) 
         {
             this.level     = level;
             this.nodes     = null;
             this.currentId = 0;
-            this.openList  = new PriorityQueue<Node, int>();
+            this.queue     = new PriorityQueue<Node, int>();
         }
 
         public void Create(byte[,] tiles)
@@ -71,7 +73,7 @@ namespace Core
             Tuple<Node, Node> nodes = GetStartAndEndNodes(from, to);
 
             List<Vector2> path = new List<Vector2>();
-            Solve(path, nodes.Item1, nodes.Item2);
+            SolveAStar(path, nodes.Item1, nodes.Item2);
 
             return path;
         }
@@ -81,7 +83,7 @@ namespace Core
             Tuple<Node, Node> nodes = GetStartAndEndNodes(from, to);
 
             path.Clear();
-            Solve(path, nodes.Item1, nodes.Item2);
+            SolveAStar(path, nodes.Item1, nodes.Item2);
         }
 
         public Tuple<Node, Node> GetStartAndEndNodes(Vector2 from, Vector2 to)
@@ -179,18 +181,74 @@ namespace Core
             }
         }
 
-        private void Solve(List<Vector2> ret, Node start, Node end)
+        public void SolveDijkstra(List<Vector2> ret, Node start, Node end)
+        {
+            ResetNodes();
+
+            queue.Clear();
+            queue.Enqueue(start, 0);
+            start.TotalCost = 0;
+
+            Node current = null;
+            while (queue.Count != 0 && current != end)
+            {
+                current       = queue.Dequeue();
+                current.State = NodeState.Visited;
+
+                foreach (Node next in current.Neighbours)
+                {
+                    if (next.State == NodeState.Visited) continue;
+
+                    int totalCost = current.TotalCost;
+                    //Comprobamos si es un nodo diagonal
+                    if (current.ArrayPos.X != next.ArrayPos.X &&
+                        current.ArrayPos.Y != next.ArrayPos.Y)
+                        totalCost += 14; //Sqrt(2) * 10
+                    else
+                        totalCost += 10;
+
+                    if (totalCost < next.TotalCost)
+                    {
+                        next.TotalCost  = totalCost;
+                        next.PathParent = current;
+
+                        queue.Enqueue(next, totalCost);
+                    }
+                }
+            }
+
+            while (end != null)
+            {
+                ret.Add(end.WorldPos);
+                end = end.PathParent;
+            }
+        }
+
+        public void Draw()
+        {
+            foreach(Node node in nodes)
+            {
+                if(node.PathParent != null)
+                {
+                    Vector2 dir = Vector2.Normalize(node.PathParent.WorldPos - node.WorldPos);
+                    DebugDraw.Line(node.WorldPos, node.PathParent.WorldPos - dir * 5.0f, Color.Yellow);
+                    DebugDraw.Point(node.WorldPos, Color.Red);
+                }
+            }
+        }
+
+        private void SolveAStar(List<Vector2> ret, Node start, Node end)
         {
             ResetNodes();
             start.TotalCost = 0;
 
-            openList.Clear();
-            openList.Enqueue(start, 0);
+            queue.Clear();
+            queue.Enqueue(start, 0);
 
             Node current = null;
-            while(openList.Count != 0 && current != end)
+            while(queue.Count != 0 && current != end)
             {
-                current       = openList.Dequeue();
+                current       = queue.Dequeue();
                 current.State = NodeState.Visited;
 
                 foreach(Node next in current.Neighbours)
@@ -212,7 +270,7 @@ namespace Core
                         if(next.State == NodeState.None) 
                         {
                             next.Heuristic = CalculateHeuristic(next, end);
-                            next.State     = NodeState.OnOpenList;
+                            next.State     = NodeState.OnQueue;
                         }
 
                         int priority    = totalCost + next.Heuristic;
@@ -220,7 +278,7 @@ namespace Core
                         next.PathParent = current;
 
                         //Add the node even if it is already in the list
-                        openList.Enqueue(next, priority);
+                        queue.Enqueue(next, priority);
                     }
                 }
             }

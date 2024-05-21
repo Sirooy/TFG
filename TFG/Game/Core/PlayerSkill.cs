@@ -517,12 +517,348 @@ namespace Core
 
     #endregion
 
+    #region Warrior
+
+    public class SwordSpinPSkill : PlayerSkill
+    {
+        private float minRadius;
+        private float maxRadius;
+        private float growSpeed;
+
+        public SwordSpinPSkill(int level) : base(
+            38 + level,
+            CharacterType.Warrior,
+            CharacterType.Player)
+        {
+
+            level = Math.Clamp(level, 1, 4);
+            growSpeed = 1.0f + level * 0.25f;
+            minRadius = 10.0f + level * 2.5f;
+            maxRadius = 30.0f + level * 10.0f;
+        }
+
+        public override void Init()
+        {
+            ChargeCircleMinigame.Init(growSpeed, 1.0f, Color.White, Color.Red,
+                minRadius, maxRadius);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if(ChargeCircleMinigame.Update(world.Dt) == MinigameState.Finished)
+            {
+                float radius = ChargeCircleMinigame.Radius;
+
+                Entity attack = world.EntityFactory.CreateAttack(AttackType.SwordSpin,
+                    target.Position, 10.0f, 3000.0f, CollisionBitmask.Enemy);
+                TriggerColliderCmp collider = world.EntityManager.
+                    GetComponent<TriggerColliderCmp>(attack);
+                CircleCollider circle = (CircleCollider)collider.Collider;
+                attack.Scale          = radius / circle.Radius;
+
+                return SkillState.Finished;
+            }
+
+            return SkillState.Executing;
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            ChargeCircleMinigame.Draw(spriteBatch, target.Position,
+                1.0f, Color.Yellow, 32);
+        }
+    }
+
+    public class SwordStabPSkill : PlayerSkill
+    {
+        private enum InternalState
+        {
+            SelectingDirections,
+            ExecutingAttacks
+        }
+
+        private float rps;
+        private int level;
+        private int currentNumAttacks;
+        private int currentAttackIndex;
+        private Entity currentAttack;
+        private InternalState internalState;
+        private List<Vector2> attackDirections;
+
+        public SwordStabPSkill(int level) :base(
+            41 + level,
+            CharacterType.Warrior,
+            CharacterType.Normal)
+        {
+            level = Math.Clamp(level, 1, 4);
+
+            this.level         = level;
+            rps                = 0.8f + level * 0.2f;
+            attackDirections   = new List<Vector2>();
+            currentNumAttacks  = level;
+            currentAttackIndex = 0;
+        }
+
+        public override void Init()
+        {
+            attackDirections.Clear();
+            internalState      = InternalState.SelectingDirections;
+            currentNumAttacks  = level;
+            currentAttackIndex = 0;
+
+            RotatingArrowMinigame.Init(rps, 0.5f);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if (internalState == InternalState.SelectingDirections)
+            {
+                if (RotatingArrowMinigame.Update(world.Dt) == MinigameState.Finished)
+                {
+                    attackDirections.Add(RotatingArrowMinigame.Direction);
+                    currentNumAttacks--;
+
+                    if (currentNumAttacks == 0)
+                        internalState = InternalState.ExecutingAttacks;
+                    else
+                        RotatingArrowMinigame.Init(rps, 0.5f);
+                }
+
+                return SkillState.Executing;
+            }
+            else
+            {
+                if(currentAttack == null)
+                {
+                    Vector2 direction = attackDirections[currentAttackIndex];
+                    currentAttack = world.EntityFactory.CreateAttack(AttackType.SwordStab,
+                        target.Position, 5.0f, 500.0f, CollisionBitmask.Enemy);
+                    AIUtil.SetProjectilePosition(world.EntityManager, currentAttack,
+                        target.Position, direction);
+                    AIUtil.SetProjectileDirection(world.EntityManager, currentAttack,
+                        direction);
+
+                    currentAttackIndex++;
+                }
+                else
+                {
+                    if(!currentAttack.IsValid)
+                    {
+                        currentAttack = null;
+                        if(currentAttackIndex == attackDirections.Count)
+                            return SkillState.Finished;
+                    }
+                }
+
+                return SkillState.Executing;
+            }
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            if (internalState == InternalState.SelectingDirections)
+            {
+                RotatingArrowMinigame.Draw(spriteBatch, target.Position,
+                    12.0f, 32.0f, new Color(255, 255, 255, 128));
+            }
+        }
+    }
+
+    #endregion
+
+    #region Mage
+
+    public class FireballPSkill : PlayerSkill
+    {
+        private enum InternalState
+        {
+            SelectingDirections,
+            ExecutingAttacks
+        }
+
+        private float maxAngle;
+        private int level;
+        private int currentNumAttacks;
+        private int currentAttackIndex;
+        private Entity currentAttack;
+        private InternalState internalState;
+        private List<Vector2> attackDirections;
+
+        public FireballPSkill(int level) : base(
+            25 + level,
+            CharacterType.Mage,
+            CharacterType.Normal)
+        {
+            level = Math.Clamp(level, 1, 4);
+
+            this.level = level;
+            maxAngle   = MathHelper.ToRadians(35.0f + level * 5.0f);
+            attackDirections = new List<Vector2>();
+            currentNumAttacks = level;
+            currentAttackIndex = 0;
+        }
+
+        public override void Init()
+        {
+            attackDirections.Clear();
+            internalState = InternalState.SelectingDirections;
+            currentNumAttacks = level;
+            currentAttackIndex = 0;
+
+            ZigZagArrowMinigame.Init(maxAngle, 1.0f, 0.5f);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if (internalState == InternalState.SelectingDirections)
+            {
+                if (ZigZagArrowMinigame.Update(world.Dt, target, world.Camera) == MinigameState.Finished)
+                {
+                    attackDirections.Add(ZigZagArrowMinigame.Direction);
+                    currentNumAttacks--;
+
+                    if (currentNumAttacks == 0)
+                        internalState = InternalState.ExecutingAttacks;
+                    else
+                        ZigZagArrowMinigame.Init(maxAngle, 1.0f, 0.5f);
+                }
+
+                return SkillState.Executing;
+            }
+            else
+            {
+                if (currentAttack == null)
+                {
+                    Vector2 direction = attackDirections[currentAttackIndex];
+                    currentAttack = world.EntityFactory.CreateAttack(AttackType.Fireball,
+                        target.Position, 5.0f, 500.0f, CollisionBitmask.Enemy);
+                    AIUtil.SetProjectilePosAndVel(world.EntityManager, currentAttack,
+                        target.Position, direction, 150.0f);
+
+                    currentAttackIndex++;
+                }
+                else
+                {
+                    if (!currentAttack.IsValid)
+                    {
+                        currentAttack = null;
+                        if (currentAttackIndex == attackDirections.Count)
+                            return SkillState.Finished;
+                    }
+                }
+
+                return SkillState.Executing;
+            }
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            if (internalState == InternalState.SelectingDirections)
+            {
+                ZigZagArrowMinigame.Draw(spriteBatch, target.Position,
+                    12.0f, 24.0f, new Color(255, 255, 255, 128));
+            }
+        }
+    }
+
+    public class WaterballPSkill : PlayerSkill
+    {
+        private int levels;
+
+        public WaterballPSkill(int level) :
+            base(28 + level,
+            CharacterType.Mage,
+            CharacterType.Player)
+        {
+            level = Math.Clamp(level, 1, 3);
+            levels = level + 1;
+        }
+
+        public override void Init()
+        {
+            ZigZagChargeArrowMinigame.Init(levels, MathHelper.ToRadians(25.0f + (levels - 1) * 5.0f),
+                0.75f, 1.0f, 8.0f, 24.0f + levels * 4.0f, Color.Yellow, Color.Red);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if (ZigZagChargeArrowMinigame.Update(world.Dt, target, world.Camera) ==
+                MinigameState.Finished)
+            {
+                Entity attack = world.EntityFactory.CreateAttack(AttackType.Waterball,
+                    target.Position, 5.0f + ZigZagChargeArrowMinigame.CurrentLevelPower * 2.0f,
+                    1000.0f, CollisionBitmask.Enemy);
+                AIUtil.SetProjectilePosAndVel(world.EntityManager, attack,
+                    target.Position, ZigZagChargeArrowMinigame.Direction, 150.0f);
+
+                return SkillState.Finished;
+            }
+
+            return SkillState.Executing;
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            ZigZagChargeArrowMinigame.Draw(spriteBatch, target.Position,
+                8.0f, 24.0f, CHARGE_BAR_LENGTH, CHARGE_BAR_HEIGHT,
+                new Color(255, 255, 255, 128), Color.White);
+        }
+    };
+
+    public class LightningballPSkill : PlayerSkill
+    {
+        private float rps;
+        private float damage;
+
+        public LightningballPSkill(int level) :
+            base(31 + level,
+            CharacterType.Mage,
+            CharacterType.Player)
+        {
+            level = Math.Clamp(level, 1, 2);
+            rps    = 0.75f + level * 0.25f;
+            damage = 5.0f + level * 3.0f;
+        }
+
+        public override void Init()
+        {
+            RotatingArrowMinigame.Init(rps, 1.0f);
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if (RotatingArrowMinigame.Update(world.Dt) == MinigameState.Finished)
+            {
+                Entity attack = world.EntityFactory.CreateAttack(AttackType.LightningBall,
+                    target.Position, damage, 1000.0f, CollisionBitmask.Enemy);
+                AIUtil.SetProjectilePosAndVel(world.EntityManager, attack,
+                    target.Position, RotatingArrowMinigame.Direction, 200.0f);
+
+                return SkillState.Finished;
+            }
+
+            return SkillState.Executing;
+        }
+
+        public override void Draw(GameWorld world,
+            SpriteBatch spriteBatch, Entity target)
+        {
+            RotatingArrowMinigame.Draw(spriteBatch, target.Position,
+                8.0f, 16.0f, new Color(255, 255, 255, 128));
+        }
+    }
+
+    #endregion
+
     #region Ranger
 
     public class ArrowPSkill : PlayerSkill
     {
         private int levels;
-        private float maxDamage;
 
         public ArrowPSkill(int level) : 
             base(13 + level,
@@ -531,7 +867,6 @@ namespace Core
         {
             level     = Math.Clamp(level, 1, 3);
             levels    = level + 1;
-            maxDamage = level * 5.0f;
         }
 
         public override void Init()
@@ -546,7 +881,7 @@ namespace Core
                 MinigameState.Finished)
             {
                 Entity arrow = world.EntityFactory.CreateAttack(AttackType.Arrow,
-                    target.Position, 5.0f + ZigZagChargeArrowMinigame.CurrentLevelPower, 
+                    target.Position, 5.0f + ZigZagChargeArrowMinigame.CurrentLevelPower * 2.0f, 
                     0.0f, CollisionBitmask.Enemy);
                 AIUtil.SetProjectilePosAndVel(world.EntityManager, arrow,
                     target.Position, ZigZagChargeArrowMinigame.Direction, 150.0f);
@@ -754,8 +1089,8 @@ namespace Core
 
         public override void Init()
         {
-            ZigZagChargeArrowMinigame.Init(6, MathHelper.ToRadians(45.0f), 1.0f, 
-                1.0f, 16.0f, 48.0f, Color.Yellow, Color.Red);
+            //ZigZagChargeArrowMinigame.Init(6, MathHelper.ToRadians(45.0f), 1.0f, 
+            //    1.0f, 16.0f, 48.0f, Color.Yellow, Color.Red);
             //ChargeCircleMinigame.Init(1.0f, 2.0f, Color.Yellow, Color.Red,
             //    16.0f, 32.0f);
         }
@@ -767,9 +1102,12 @@ namespace Core
             //{
             //    return SkillState.Finished;
             //}
-            ZigZagChargeArrowMinigame.Update(world.Dt, target, world.Camera);
+            //ZigZagChargeArrowMinigame.Update(world.Dt, target, world.Camera);
 
-            return SkillState.Executing;
+            world.EntityFactory.CreateAttack(AttackType.SwordStab, target.Position,
+                100.0f, 10000.0f, CollisionBitmask.Enemy);
+
+            return SkillState.Finished;
         }
 
         public override void Draw(GameWorld world, 
@@ -777,8 +1115,8 @@ namespace Core
         {
             //ChargeBarMinigame.Draw(spriteBatch, target.Position, 48.0f, 8.0f, 
             //    Color.White);
-            ZigZagChargeArrowMinigame.Draw(spriteBatch, target.Position, 16.0f, 32.0f, 
-                32.0f, 8.0f, new Color(255, 255, 255, 128), Color.White);
+            //ZigZagChargeArrowMinigame.Draw(spriteBatch, target.Position, 16.0f, 32.0f, 
+            //    32.0f, 8.0f, new Color(255, 255, 255, 128), Color.White);
             //ChargeCircleMinigame.Draw(spriteBatch, target.Position, 1.0f,
             //    Color.White, 32);
         }

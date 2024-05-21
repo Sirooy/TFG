@@ -392,10 +392,9 @@ namespace States
 
             playerData.Dices.Add(new Dice(new List<PlayerSkill>()
             {
-                new ArrowPSkill(3),
-                new ArrowPSkill(2),
-                new ArrowPSkill(1),
-
+                new LightningballPSkill(3),
+                new LightningballPSkill(2),
+                new LightningballPSkill(1),
             }, new Color(1.0f, 1.0f, 1.0f)));
 
             ResetUIDices();
@@ -460,6 +459,11 @@ namespace States
                 blendState: BlendState.NonPremultiplied);
             ui.Draw(spriteBatch);
             spriteBatch.End();
+
+            //var a = level.PathFindingMap.GetStartAndEndNodes( Vector2.Zero, 
+            //    MouseInput.GetPosition(cameraController.Camera));
+            //level.PathFindingMap.SolveDijkstra(null, a.Item1, null);
+            //level.PathFindingMap.Draw();
 
             return StateResult.StopExecuting;
         }
