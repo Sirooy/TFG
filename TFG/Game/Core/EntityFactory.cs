@@ -16,9 +16,10 @@ namespace Core
     public enum EnemyType
     {
         BlackBat,
+        BrownBat,
         Skeleton,
-        RedDragon,
         Goblin,
+        RedDragon,
         WizardGoblin,
         Enemy3
     }
@@ -91,7 +92,8 @@ namespace Core
             createEnemyFunctions = new Dictionary<EnemyType,
                 Func<Vector2, Entity>>
             {
-                { EnemyType.BlackBat,     CreateEnemyWizardGoblin       },
+                { EnemyType.BlackBat,     CreateEnemyBlackBat     },
+                { EnemyType.BrownBat,     CreateEnemyBrownBat     },
                 { EnemyType.Skeleton,     CreateEnemySkeleton     },
                 { EnemyType.RedDragon,    CreateEnemyRedDragon    },
                 { EnemyType.Goblin,       CreateEnemyGoblin       },
@@ -172,9 +174,26 @@ namespace Core
             AICmp ai = entityManager.AddComponent(e, new AICmp());
             ai.DecisionTree = new BinaryDecisionNode(
                 new NearestEntitySelector(EntityTags.Player),
-                new IsNearCondition(50.0f),
+                new IsNearCondition(30.0f),
                 new MeleeAttackESkill(10.0f, Color.Red),
                 new StraightDashESkill(100.0f));
+
+            return e;
+        }
+
+        private Entity CreateEnemyBrownBat(Vector2 position)
+        {
+            Entity e = CreateEnemyBaseEntity(position,
+                "BrownBatSpriteSheet",
+                CharacterType.Enemy | CharacterType.Normal,
+                CharacterType.Normal, 15.0f);
+
+            AICmp ai = entityManager.AddComponent(e, new AICmp());
+            ai.DecisionTree = new BinaryDecisionNode(
+                new NearestEntitySelector(EntityTags.Player),
+                new IsNearCondition(50.0f),
+                new MeleeAttackESkill(10.0f, Color.Brown),
+                new DashESkill(120.0f));
 
             return e;
         }
@@ -189,7 +208,7 @@ namespace Core
             AICmp ai = entityManager.AddComponent(e, new AICmp());
             ai.DecisionTree = new BinaryDecisionNode(
                 new NearestEntitySelector(EntityTags.Player),
-                new IsNearCondition(50.0f),
+                new IsNearCondition(30.0f),
                 new MeleeAttackESkill(5.0f, Color.White),
                 new PathFollowESkill(50.0f, 120.0f));
 
@@ -249,7 +268,7 @@ namespace Core
                         new LessHealthEntitySelector(EntityTags.Enemy),
                         new IsNearCondition(80.0f),
                         new HealESkill(10.0f),
-                        new TeleportToTargetESkill(200.0f)),
+                        new TeleportToTargetESkill(100.0f)),
                 new TargetChangerDecisionNode(
                     new RandomEntitySelector(EntityTags.Player),
                     new ProjectileAttackESkill(AttackType.Waterball, 10.0f, 500.0f, 120.0f)));
@@ -293,7 +312,7 @@ namespace Core
             phy.Inertia       = 0.0f;
             phy.LinearDamping = 0.0f;
             TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
-                new CircleCollider(17 * 0.5f),
+                new RectangleCollider(20.0f, 6.0f),
                 CollisionBitmask.Attack, mask | CollisionBitmask.Wall));
             col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1, 
                                    Entity e2, ColliderBody c2, 
@@ -372,7 +391,7 @@ namespace Core
             phy.Inertia = 0.0f;
             phy.LinearDamping = 0.0f;
             TriggerColliderCmp col = entityManager.AddComponent(e, new TriggerColliderCmp(
-                new CircleCollider(16.0f * 0.5f),
+                new CircleCollider(14.0f * 0.5f),
                 CollisionBitmask.Attack, mask | CollisionBitmask.Wall));
             int bouncesLeft = 2;
             col.OnTriggerEnter += (Entity e1, TriggerColliderCmp c1,
@@ -497,7 +516,7 @@ namespace Core
                             if((col.CollisionLayer & mask) != CollisionBitmask.None &&
                                 Vector2.DistanceSquared(e2.Position, other.Position) <= 64.0f * 64.0f)
                             {
-                                health.CurrentHealth -= damage * 0.2f;
+                                health.CurrentHealth -= damage * 0.4f;
                                 Entity slash = this.CreateEffectSlash(other.Position);
                                 SpriteCmp slashSpr = entityManager.GetComponent<SpriteCmp>(slash);
                                 slashSpr.Color = Color.Yellow;
@@ -838,7 +857,7 @@ namespace Core
                 "WarriorSpriteSheet", 
                 CharacterType.Player | CharacterType.Normal | CharacterType.Warrior,
                 CharacterType.Player | CharacterType.Normal | CharacterType.Warrior, 
-                30.0f);
+                40.0f);
 
             return e;
         }

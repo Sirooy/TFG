@@ -40,7 +40,6 @@ namespace Core
         public PlayerSkill Roll()
         {
             int index = Random.Shared.Next(faces.Count);
-
             return faces[index];
         }
     }

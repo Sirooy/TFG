@@ -58,7 +58,7 @@ namespace Core
             while(searchQueue.Count != 0 && !found)
             {
                 Point point = searchQueue.Dequeue();
-
+                Console.WriteLine(point);
                 if (tiles[point.X, point.Y].HasCollision)
                 {
                     AddNeighboursToSearchQueue(point);

@@ -8,7 +8,7 @@ namespace Engine.Debug
 {
     public static class DebugTimer
     {
-        public const string DEFINE = "DEBUG";
+        public const string DEFINE = "DEBUG1";
 
         private class TimerData
         {

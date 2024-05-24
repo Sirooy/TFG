@@ -31,6 +31,9 @@ namespace Core
             this.dragStartPosition      = Vector2.Zero;
             this.dragCameraBasePosition = Vector2.Zero;
             this.isDragging             = false;
+
+            this.camera.Zoom = 2.6f;
+            this.targetZoom  = 2.6f;
         }
 
         public void Update(float dt)

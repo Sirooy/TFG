@@ -134,6 +134,11 @@ namespace States
             }
         }
 
+        public bool HasNextLevel()
+        {
+            return levels.Count > 0;
+        }
+
         public string GetNextLevel()
         {
             if(levels.Count == 0)

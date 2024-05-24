@@ -211,8 +211,8 @@ namespace Core
         private InternalState internalState;
         private Vector2 currentDirection;
 
-        public RotatingDashPlayerSkill(int level) :
-            base(new Rectangle(32 + level * 32, 0, 32, 32),
+        public RotatingDashPlayerSkill(int level) : base(
+            34 + level,
             CharacterType.Warrior,
             CharacterType.Normal)
         {
@@ -304,7 +304,8 @@ namespace Core
         private Vector2 targetPosition;
         private InternalState internalState;
 
-        public TeleportPSkill(int level) : base(new Rectangle(32, 0, 32, 32),
+        public TeleportPSkill(int level) : base(
+            21 + level,
             CharacterType.Normal,
             CharacterType.Mage | CharacterType.Enemy)
         {
@@ -524,6 +525,7 @@ namespace Core
         private float minRadius;
         private float maxRadius;
         private float growSpeed;
+        private float damage;
 
         public SwordSpinPSkill(int level) : base(
             38 + level,
@@ -535,6 +537,7 @@ namespace Core
             growSpeed = 1.0f + level * 0.25f;
             minRadius = 10.0f + level * 2.5f;
             maxRadius = 30.0f + level * 10.0f;
+            damage    = 5.0f + level * 3.0f;
         }
 
         public override void Init()
@@ -550,7 +553,7 @@ namespace Core
                 float radius = ChargeCircleMinigame.Radius;
 
                 Entity attack = world.EntityFactory.CreateAttack(AttackType.SwordSpin,
-                    target.Position, 10.0f, 3000.0f, CollisionBitmask.Enemy);
+                    target.Position, damage, 3000.0f, CollisionBitmask.Enemy);
                 TriggerColliderCmp collider = world.EntityManager.
                     GetComponent<TriggerColliderCmp>(attack);
                 CircleCollider circle = (CircleCollider)collider.Collider;
@@ -819,8 +822,8 @@ namespace Core
             CharacterType.Mage,
             CharacterType.Player)
         {
-            level = Math.Clamp(level, 1, 2);
-            rps    = 0.75f + level * 0.25f;
+            level = Math.Clamp(level, 1, 3);
+            rps    = 0.5f + level * 0.1f;
             damage = 5.0f + level * 3.0f;
         }
 
@@ -1119,6 +1122,26 @@ namespace Core
             //    32.0f, 8.0f, new Color(255, 255, 255, 128), Color.White);
             //ChargeCircleMinigame.Draw(spriteBatch, target.Position, 1.0f,
             //    Color.White, 32);
+        }
+    }
+
+    public class DamageEntityPSkill : PlayerSkill
+    {
+        public float Damage;
+
+        public DamageEntityPSkill(float damage) : base(new Rectangle(32, 0, 32, 32),
+            CharacterType.AllTypes,
+            CharacterType.AllTypes)
+        {
+            Damage = damage;
+        }
+
+        public override SkillState Update(GameWorld world, Entity target)
+        {
+            if (world.EntityManager.TryGetComponent(target, out HealthCmp health))
+                health.CurrentHealth -= Damage;
+
+            return SkillState.Finished;
         }
     }
 

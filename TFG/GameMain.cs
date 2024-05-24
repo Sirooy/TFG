@@ -20,8 +20,8 @@ public class GameMain : Game
     private RenderScreen screen;
     private SpriteFont font;
 
-    public const int WindowWidth  = 1024;
-    public const int WindowHeight = 720;
+    public const int WindowWidth  = 1200;
+    public const int WindowHeight = 1024;
 
     public GraphicsDeviceManager Graphics { get { return graphics; } }
     public GameStateStack GameStates { get { return gameStates; } }
@@ -39,6 +39,7 @@ public class GameMain : Game
         graphics.PreferredBackBufferHeight = WindowHeight;
         graphics.HardwareModeSwitch = false;
         graphics.DeviceReset += Graphics_DeviceReset;
+        Window.IsBorderless = true;
         
         //TODO: REMOVE
         Window.ClientSizeChanged += (object sender, EventArgs args) =>
@@ -64,6 +65,9 @@ public class GameMain : Game
         DebugDraw.RegisterLayer(PhysicsSystem.DEBUG_DRAW_LAYER, 2.0f, 1.0f, 16);
         DebugDraw.RegisterLayer(UIElement.DEBUG_DRAW_LAYER, 4.0f, 2.0f, 16, false);
         DebugDraw.SetMainLayerData(2.0f, 1.0f, 16);
+        DebugDraw.SetLayerEnabled(PhysicsSystem.DEBUG_DRAW_LAYER, false);
+        DebugDraw.SetLayerEnabled(UIElement.DEBUG_DRAW_LAYER, false);
+        DebugDraw.SetMainLayerEnabled(false);
         DrawUtil.Init(GraphicsDevice, Content);
 
         gameStates.RegisterState(new MainMenuState(this));
@@ -109,7 +113,7 @@ public class GameMain : Game
         DebugTimer.Stop("Draw");
         DebugTimer.Draw(spriteBatch, font);
 
-        screen.Present(spriteBatch, SamplerState.PointClamp, Color.Green);
+        screen.Present(spriteBatch, SamplerState.PointClamp, Color.Black);
 
         base.Draw(gameTime);
     }
@@ -150,6 +154,11 @@ public class GameMain : Game
         {
             bool enabled = DebugDraw.IsLayerEnabled(UIElement.DEBUG_DRAW_LAYER);
             DebugDraw.SetLayerEnabled(UIElement.DEBUG_DRAW_LAYER, !enabled);
+        }
+
+        if(KeyboardInput.IsKeyPressed(Keys.F))
+        {
+            Graphics.ToggleFullScreen();
         }
     }
 

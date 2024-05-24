@@ -346,7 +346,9 @@ namespace AI
             else
                 dir.Normalize();
 
-            teleportPosition = enemy.Position + dir * MaxDistance * t;
+            world.Level.CollisionMap.FindClosestPosition(
+                enemy.Position + dir * MaxDistance * t, 
+                out teleportPosition);
         }
     }
 

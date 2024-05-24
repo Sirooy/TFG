@@ -363,40 +363,6 @@ namespace States
                 level.Width * 0.5f,
                 level.Height * 0.5f);
 
-            // BORRAR
-            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
-            {
-                new DragDashPlayerSkill(1),
-                new DragDashPlayerSkill(2),
-                new DragDashPlayerSkill(3),
-                new DragDashPlayerSkill(4),
-            }, new Color(1.0f, 0.3f, 0.3f)));
-
-            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
-            {
-                new ProjectilePSkill(),
-                new ProjectilePSkill(),
-                new ProjectilePSkill(),
-                new ProjectilePSkill(),
-                new ProjectilePSkill(),
-                new ProjectilePSkill()
-            }, new Color(0.3f, 1.0f, 0.3f)));
-
-            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
-            {
-                new KillEntityPSkill(),
-                new KillEntityPSkill(),
-                new KillEntityPSkill(),
-                new KillEntityPSkill()
-            }, new Color(0.3f, 0.3f, 1.0f)));
-
-            playerData.Dices.Add(new Dice(new List<PlayerSkill>()
-            {
-                new LightningballPSkill(3),
-                new LightningballPSkill(2),
-                new LightningballPSkill(1),
-            }, new Color(1.0f, 1.0f, 1.0f)));
-
             ResetUIDices();
             CreateUIDices();
             SetPlayersSpawnPositions();
@@ -670,7 +636,10 @@ namespace States
                     else if (AllEntitiesWithTagsAreDead(EntityTags.Enemy))
                     {
                         parentState.GameStates.PopAllActiveStates();
-                        parentState.GameStates.PushState<PlayGameWinState>();
+                        if (parentState.HasNextLevel())
+                            parentState.GameStates.PushState<PlayGameDungeonState>();
+                        else
+                            parentState.GameStates.PushState<PlayGameWinState>();
                     }
                     if (playerData.DiceRolls.Count == 0)
                     {
@@ -779,7 +748,10 @@ namespace States
                 else if(AllEntitiesWithTagsAreDead(EntityTags.Enemy))
                 {
                     parentState.GameStates.PopAllActiveStates();
-                    parentState.GameStates.PushState<PlayGameWinState>();
+                    if(parentState.HasNextLevel())
+                        parentState.GameStates.PushState<PlayGameDungeonState>();
+                    else
+                        parentState.GameStates.PushState<PlayGameWinState>();
                 }
                 else
                 {

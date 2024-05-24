@@ -9,11 +9,89 @@ using System.Net.NetworkInformation;
 using System.Reflection.Metadata;
 using System;
 using Microsoft.Xna.Framework.Media;
+using System.Collections.Generic;
 
 namespace States
 {
     public class PlayGameSelectCharState : GameState
     {
+        private static PlayerSkill[] WarriorSkills = new PlayerSkill[]
+        {
+            new RotatingDashPlayerSkill(1),
+            new RotatingDashPlayerSkill(2),
+            new RotatingDashPlayerSkill(3),
+            new RotatingDashPlayerSkill(4),
+            new SwordStabPSkill(1),
+            new SwordStabPSkill(2),
+            new SwordStabPSkill(3),
+            new SwordSpinPSkill(1),
+            new SwordSpinPSkill(2),
+            new SwordSpinPSkill(3)
+        };
+
+        private static PlayerSkill[] MageSkills = new PlayerSkill[]
+        {
+            new TeleportPSkill(1),
+            new TeleportPSkill(2),
+            new TeleportPSkill(3),
+            new TeleportPSkill(4),
+            new FireballPSkill(1),
+            new FireballPSkill(2),
+            new FireballPSkill(3),
+            new WaterballPSkill(1),
+            new WaterballPSkill(2),
+            new WaterballPSkill(3),
+            new LightningballPSkill(1),
+            new LightningballPSkill(2),
+            new LightningballPSkill(3)
+        };
+
+        private static PlayerSkill[] RangerSkills = new PlayerSkill[]
+        {
+            new PathFollowPSkill(1),
+            new PathFollowPSkill(2),
+            new PathFollowPSkill(3),
+            new PathFollowPSkill(4),
+            new ArrowPSkill(1),
+            new ArrowPSkill(2),
+            new ArrowPSkill(3),
+            new PullingArrowPSkill(1),
+            new PullingArrowPSkill(2),
+            new PullingArrowPSkill(3),
+            new HealingArrowPSkill(1),
+            new HealingArrowPSkill(2)
+        };
+
+        private static PlayerSkill[] CommonSkills = new PlayerSkill[]
+        {
+            new DragDashPlayerSkill(1),
+            new DragDashPlayerSkill(2),
+            new DragDashPlayerSkill(3),
+            new DragDashPlayerSkill(4),
+            new DirectDamagePSkill(1),
+            new DirectDamagePSkill(2),
+            new DirectDamagePSkill(3),
+            new DirectHealthPSkill(1),
+            new DirectHealthPSkill(2),
+            new DirectHealthPSkill(3),
+        };
+
+        private static PlayerSkill[][] Skills = new PlayerSkill[][]
+        {
+            WarriorSkills,
+            MageSkills,
+            RangerSkills,
+            CommonSkills
+        };
+
+        private static Color[] DiceColors = new Color[]
+        {
+            new Color(1.0f, 0.3f, 0.3f),
+            new Color(0.3f, 0.3f, 1.0f),
+            new Color(0.3f, 1.0f, 0.3f),
+            new Color(1.0f, 1.0f, 1.0f),
+        };
+
         public class CharData
         {
             public PlayerType Type;
@@ -302,8 +380,45 @@ namespace States
 
         public override void OnExit()
         {
+            CreateAllDices();
             MediaPlayer.Stop();
             DebugLog.Info("OnExit state: {0}", nameof(PlayGameLoseState));
+        }
+
+        private void CreateAllDices()
+        {
+            List<int> faceCounts = new List<int>() { 6,4,5,6 };
+
+            foreach(int i in selectedChars)
+            {
+                int faceCountIndex = Random.Shared.Next(faceCounts.Count);
+                int faceCount      = faceCounts[faceCountIndex];
+                CharData data      = charData[i];
+
+                CreateDice(data.Type, faceCount);
+                faceCounts.RemoveAt(faceCountIndex);
+            }
+
+            //Create common dice
+            Dice commonDice = CreateDice((PlayerType)3, faceCounts[0] - 2);
+            commonDice.Faces.Add(CommonSkills[Random.Shared.Next(4)]);
+            commonDice.Faces.Add(CommonSkills[Random.Shared.Next(4)]);
+        }
+
+        private Dice CreateDice(PlayerType type, int faceCount)
+        {
+            List<PlayerSkill> faces = new List<PlayerSkill>();
+            for(int i = 0;i < faceCount; ++i)
+            {
+                PlayerSkill[] typeSkills = Skills[(int)type];
+
+                faces.Add(typeSkills[Random.Shared.Next(typeSkills.Length)]);
+            }
+
+            Dice dice = new Dice(faces, DiceColors[(int)type]);
+            parentState.PlayerData.Dices.Add(dice);
+
+            return dice;
         }
     }
 }
