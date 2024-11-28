@@ -426,9 +426,6 @@ namespace States
             ui.Draw(spriteBatch);
             spriteBatch.End();
 
-            //var a = level.PathFindingMap.GetStartAndEndNodes( Vector2.Zero, 
-            //    MouseInput.GetPosition(cameraController.Camera));
-            //level.PathFindingMap.SolveDijkstra(null, a.Item1, null);
             //level.PathFindingMap.Draw();
 
             return StateResult.StopExecuting;

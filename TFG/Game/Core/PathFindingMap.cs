@@ -231,8 +231,12 @@ namespace Core
                 if(node.PathParent != null)
                 {
                     Vector2 dir = Vector2.Normalize(node.PathParent.WorldPos - node.WorldPos);
-                    DebugDraw.Line(node.WorldPos, node.PathParent.WorldPos - dir * 5.0f, Color.Yellow);
-                    DebugDraw.Point(node.WorldPos, Color.Red);
+                    DebugDraw.Line(node.WorldPos, node.PathParent.WorldPos - dir * 4.0f, Color.Cyan);
+                    DebugDraw.Circle(node.WorldPos, 4.0f, Color.Cyan);
+                }
+                else
+                {
+                    DebugDraw.Circle(node.WorldPos, 4.0f, Color.Red);
                 }
             }
         }
